@@ -5,6 +5,7 @@ import {
   decimalToInt,
   getAxiosConfig,
   getHeaders,
+  getSpentGas,
   saveCheckerDataToCSV,
   TransactionCallbackParams,
   TransactionCallbackReturn,
@@ -74,25 +75,6 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
     decimals: DECIMALS,
   });
 
-  const currentBalance = await getBalance(client);
-
-  if (currentBalance === amountInt) {
-    await saveCheckerDataToCSV({
-      data: {
-        ...baseCheckerData,
-        status: CLAIMED_NOT_SENT,
-        claimAmount: amountInt,
-        balance: currentBalance,
-      },
-      fileName,
-    });
-
-    return {
-      status: 'success',
-      message: getCheckClaimMessage(CLAIMED_NOT_SENT),
-    };
-  }
-
   const txsData = await getTransactionsData({
     config,
     walletAddress,
@@ -102,41 +84,74 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
   const claimTxData = txsData?.find(
     ({ method, to }: { method: null | string; to: { hash: string } }) =>
       method === 'claim' && to.hash.toLowerCase() === PROJECT_CONTRACTS.zkClaim?.toLowerCase()
-  )?.decoded_input?.parameters;
-  const transferredTxData = txsData?.find(
-    ({ method, to }: { method: null | string; to: { hash: string } }) =>
-      method === 'transfer' && to.hash.toLowerCase() === PROJECT_CONTRACTS.zkAddress?.toLowerCase()
-  )?.decoded_input?.parameters;
+  );
 
-  if (claimTxData && currentBalance < amountInt) {
-    const amountInt = decimalToInt({
-      amount: BigInt(+claimTxData[2].value),
-      decimals: DECIMALS,
-    });
-    const transferred = transferredTxData
-      ? decimalToInt({
-          amount: BigInt(+transferredTxData[1].value),
-          decimals: DECIMALS,
-        })
-      : 'Unknown';
-    const transferredTo = transferredTxData ? transferredTxData[0].value : 'Unknown';
+  const currentBalance = await getBalance(client);
 
-    await saveCheckerDataToCSV({
-      data: {
-        ...baseCheckerData,
-        status: CLAIMED_AND_SENT,
-        claimAmount: amountInt,
-        balance: currentBalance,
-        transferred,
-        transferredTo,
-      },
-      fileName,
-    });
+  if (claimTxData) {
+    const claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used);
 
-    return {
-      status: 'success',
-      message: getCheckClaimMessage(CLAIMED_AND_SENT),
-    };
+    if (currentBalance >= amountInt) {
+      await saveCheckerDataToCSV({
+        data: {
+          ...baseCheckerData,
+          status: CLAIMED_NOT_SENT,
+          claimAmount: amountInt,
+          balance: currentBalance,
+          gasSpent: claimGasSpent.toFixed(6),
+        },
+        fileName,
+      });
+
+      return {
+        status: 'success',
+        message: getCheckClaimMessage(CLAIMED_NOT_SENT),
+      };
+    }
+
+    const transferredTxData = txsData?.find(
+      ({ method, to }: { method: null | string; to: { hash: string } }) =>
+        method === 'transfer' && to.hash.toLowerCase() === PROJECT_CONTRACTS.zkAddress?.toLowerCase()
+    );
+
+    const claimTxParams = claimTxData?.decoded_input.parameters;
+    if (currentBalance < amountInt) {
+      const amountInt = decimalToInt({
+        amount: BigInt(+claimTxParams[2].value),
+        decimals: DECIMALS,
+      });
+
+      const transferredParams = transferredTxData?.decoded_input.parameters;
+      const transferred = transferredParams
+        ? decimalToInt({
+            amount: BigInt(+transferredParams[1].value),
+            decimals: DECIMALS,
+          })
+        : 'Unknown';
+      const transferredTo = transferredParams ? transferredParams[0].value : 'Unknown';
+
+      const transferGasSpent = transferredTxData
+        ? getSpentGas(transferredTxData.gas_price, transferredTxData.gas_used)
+        : 0;
+
+      await saveCheckerDataToCSV({
+        data: {
+          ...baseCheckerData,
+          status: CLAIMED_AND_SENT,
+          claimAmount: amountInt,
+          balance: currentBalance,
+          gasSpent: (claimGasSpent + transferGasSpent).toFixed(6),
+          transferred,
+          transferredTo,
+        },
+        fileName,
+      });
+
+      return {
+        status: 'success',
+        message: getCheckClaimMessage(CLAIMED_AND_SENT),
+      };
+    }
   }
 
   await saveCheckerDataToCSV({
@@ -144,7 +159,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
       ...baseCheckerData,
       status: NOT_CLAIMED,
       claimAmount: amountInt,
-      balance: 0,
+      balance: currentBalance,
     },
     fileName,
   });

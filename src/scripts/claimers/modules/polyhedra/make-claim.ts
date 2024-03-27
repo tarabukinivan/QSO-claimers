@@ -6,6 +6,7 @@ import {
   getAxiosConfig,
   getGasOptions,
   getHeaders,
+  getSpentGas,
   saveCheckerDataToCSV,
   TransactionCallbackParams,
   TransactionCallbackReturn,
@@ -15,7 +16,7 @@ import { TransformedModuleParams } from '../../../../types';
 import { PROJECT_CONTRACTS } from '../../constants';
 import { getCheckClaimMessage } from '../../utils';
 import { CLAIM_ABI, FILENAME } from './constants';
-import { getBalance, getProofData } from './helpers';
+import { getBalance, getProofData, getTransactionData } from './helpers';
 
 export const execMakeClaimPolyhedra = async (params: TransformedModuleParams) =>
   transactionWorker({
@@ -79,12 +80,19 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
 
     await client.waitTxReceipt(txHash);
 
+    const transferData = await getTransactionData({
+      config,
+      txHash,
+    });
+    const claimGasSpent = transferData ? getSpentGas(transferData.gas_price, transferData.gas_used) : 0;
+
     await saveCheckerDataToCSV({
       data: {
         ...baseCheckerData,
         status: CLAIM_SUCCESS,
         claimAmount: amountInt,
         balance: currentBalance + amountInt,
+        gasSpent: claimGasSpent.toFixed(6),
       },
       fileName,
     });

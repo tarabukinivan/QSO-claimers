@@ -28,6 +28,15 @@ export const getTransactionsData = async ({ config, walletAddress }: GetData) =>
   return data.items;
 };
 
+interface GetTransactionData {
+  txHash: Hex;
+  config?: BaseAxiosConfig;
+}
+export const getTransactionData = async ({ config, txHash }: GetTransactionData) => {
+  const { data } = await axios.get(`${BLOCKSCOUT_ETH_API_URL}/transactions/${txHash}`, config);
+  return data;
+};
+
 export const getBalance = async (client: ClientType) => {
   const contract = PROJECT_CONTRACTS.zkAddress as Hex;
   const contractInfo: TokenContract = {
