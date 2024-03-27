@@ -24,14 +24,16 @@ export const execMakeCheckClaimPolyhedra = async (params: TransformedModuleParam
   });
 
 const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { client, gweiRange, gasLimitRange, wallet, network, proxyAgent } = params;
+  const { client, network, wallet, proxyAgent } = params;
 
-  const { walletAddress, walletClient, publicClient, explorerLink } = client;
+  const { walletAddress } = client;
 
+  const { int: nativeBalance } = await client.getNativeBalance();
   const baseCheckerData = {
     id: wallet.id,
     walletAddress,
     network,
+    nativeBalance: nativeBalance.toFixed(6),
   };
   const fileName = FILENAME;
 

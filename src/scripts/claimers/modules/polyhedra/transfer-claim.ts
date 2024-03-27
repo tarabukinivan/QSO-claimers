@@ -30,10 +30,12 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
 
   const { walletClient, walletAddress, publicClient, explorerLink } = client;
 
+  const { int: nativeBalance } = await client.getNativeBalance();
   const baseCheckerData = {
     id: wallet.id,
     walletAddress,
     network,
+    nativeBalance: nativeBalance.toFixed(6),
   };
   const fileName = FILENAME;
 
