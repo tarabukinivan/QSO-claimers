@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Hex } from 'viem';
 
 import { defaultTokenAbi } from '../../../../clients/abi';
@@ -24,8 +24,18 @@ export const getProofData = async ({ network, walletAddress, config }: GetData) 
 };
 
 export const getTransactionsData = async ({ config, walletAddress }: GetData) => {
-  const { data } = await axios.get(`${BLOCKSCOUT_ETH_API_URL}/addresses/${walletAddress}/transactions`, config);
-  return data.items;
+  try {
+    const { data } = await axios.get(`${BLOCKSCOUT_ETH_API_URL}/addresses/${walletAddress}/transactions`, config);
+    return data.items;
+  } catch (err) {
+    let errMessage = (err as Error).message;
+    if (err instanceof AxiosError) {
+      errMessage = err.response?.data.message || errMessage;
+    }
+    if (errMessage.includes('Not found')) return [];
+
+    throw err;
+  }
 };
 
 interface GetTransactionData {
@@ -33,8 +43,18 @@ interface GetTransactionData {
   config?: BaseAxiosConfig;
 }
 export const getTransactionData = async ({ config, txHash }: GetTransactionData) => {
-  const { data } = await axios.get(`${BLOCKSCOUT_ETH_API_URL}/transactions/${txHash}`, config);
-  return data;
+  try {
+    const { data } = await axios.get(`${BLOCKSCOUT_ETH_API_URL}/transactions/${txHash}`, config);
+    return data;
+  } catch (err) {
+    let errMessage = (err as Error).message;
+    if (err instanceof AxiosError) {
+      errMessage = err.response?.data.message || errMessage;
+    }
+    if (errMessage.includes('Not found')) return null;
+
+    throw err;
+  }
 };
 
 export const getBalance = async (client: ClientType) => {
