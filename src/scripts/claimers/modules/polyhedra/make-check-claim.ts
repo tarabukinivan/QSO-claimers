@@ -57,7 +57,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
         status: NOT_ELIGIBLE,
         claimAmount: 0,
         balance: 0,
-        transferAmount: 0,
+        transferred: 0,
       },
       fileName,
     });
