@@ -1,0 +1,82 @@
+import { parseGwei, PublicClient } from 'viem';
+
+import settings from '../../_inputs/settings/settings';
+import { NumberRange, SupportedNetworks } from '../../types';
+import { checkLegacyTypeByNetwork } from '../clients';
+import { getCurrentGas } from '../gas';
+import { addNumberPercentage, getRandomNumber, subtractNumberPercentage } from '../utils';
+
+export const parseCurrentGwei = (gwei: number) => parseGwei(gwei.toString());
+
+interface GetGasOptions {
+  publicClient: PublicClient;
+  network: SupportedNetworks;
+  isLegacy?: boolean;
+  gweiRange?: NumberRange;
+  gasLimitRange?: NumberRange;
+}
+export const getGasOptions = async (params: GetGasOptions) => {
+  const { gweiRange, gasLimitRange, network, publicClient } = params;
+
+  const isLegacy =
+    typeof params.isLegacy === 'undefined' ? checkLegacyTypeByNetwork(network) || false : params.isLegacy;
+
+  let maxFeePerGas;
+  let maxPriorityFeePerGas;
+  let gasPrice;
+
+  const percentForGwei = 2;
+
+  const isFeeByGweiRange = !!gweiRange && gweiRange[0] !== 0 && gweiRange[1] !== 0;
+  if (isFeeByGweiRange) {
+    const currentGwei = addNumberPercentage(getRandomNumber(gweiRange), percentForGwei);
+
+    if (isLegacy) {
+      gasPrice = parseCurrentGwei(currentGwei);
+    } else {
+      maxFeePerGas = parseCurrentGwei(currentGwei);
+      maxPriorityFeePerGas = parseCurrentGwei(subtractNumberPercentage(currentGwei, percentForGwei));
+    }
+  }
+
+  if (!isFeeByGweiRange) {
+    const percentToUpdate = settings.gasMultiplier[network];
+
+    if (percentToUpdate) {
+      const currentGasPrice = await getCurrentGas(publicClient);
+      const currentGwei = addNumberPercentage(currentGasPrice, percentToUpdate);
+
+      if (isLegacy) {
+        gasPrice = parseCurrentGwei(currentGwei);
+      } else {
+        maxFeePerGas = parseCurrentGwei(currentGwei);
+        maxPriorityFeePerGas = parseCurrentGwei(subtractNumberPercentage(currentGwei, percentForGwei));
+      }
+    }
+  }
+
+  let gasLimitOption = {};
+  if (gasLimitRange) {
+    gasLimitOption = {
+      gas: BigInt(getRandomNumber(gasLimitRange, true)),
+    };
+  }
+  if (maxFeePerGas && maxPriorityFeePerGas && !isLegacy) {
+    return {
+      ...gasLimitOption,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    };
+  }
+
+  if (gasPrice && isLegacy) {
+    return {
+      ...gasLimitOption,
+      gasPrice,
+    };
+  }
+
+  return {
+    ...gasLimitOption,
+  };
+};

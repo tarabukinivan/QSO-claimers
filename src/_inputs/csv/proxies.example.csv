@@ -1,0 +1,3 @@
+proxy_type,proxy
+SOCKS5,login:pass@ip:port
+HTTP,login:pass@ip:port
