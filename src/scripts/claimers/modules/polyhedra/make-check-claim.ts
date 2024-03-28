@@ -66,7 +66,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
 
   try {
     const { int } = await client.getNativeBalance();
-    nativeBalance = int;
+    nativeBalance = +int.toFixed(6);
 
     const getDataProps = {
       network,
@@ -112,6 +112,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
         await dbRepo.update(walletInDb.id, {
           status: CLAIM_STATUSES.CLAIMED_NOT_SENT,
           claimAmount: amountInt,
+          nativeBalance,
           balance: currentBalance,
           gasSpent: +claimGasSpent.toFixed(6),
         });
@@ -152,7 +153,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
           claimAmount: amountInt,
           balance: currentBalance,
           gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
-          nativeBalance: +nativeBalance.toFixed(6),
+          nativeBalance,
           transferred,
           transferredTo,
         });
@@ -177,7 +178,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
   } catch (err) {
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.CHECK_ERROR,
-      nativeBalance: +nativeBalance.toFixed(6),
+      nativeBalance,
       error: formatErrMessage(err),
     });
 

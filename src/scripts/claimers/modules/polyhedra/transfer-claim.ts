@@ -75,7 +75,7 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
 
   try {
     const { int } = await client.getNativeBalance();
-    nativeBalance = int;
+    nativeBalance = +int.toFixed(6);
 
     const headers = getHeaders();
     const config = await getAxiosConfig({
@@ -148,7 +148,7 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       status: CLAIM_STATUSES.TRANSFER_SUCCESS,
       balance: currentBalance - amountToTransfer,
       gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
-      nativeBalance: +nativeBalance.toFixed(6),
+      nativeBalance,
       transferred: amountToTransfer,
       transferredTo: secondAddress,
     });
@@ -163,7 +163,7 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.TRANSFER_ERROR,
       balance: currentBalance,
-      nativeBalance: +nativeBalance.toFixed(6),
+      nativeBalance,
       gasSpent: +claimGasSpent.toFixed(6),
       error: formatErrMessage(err),
     });
