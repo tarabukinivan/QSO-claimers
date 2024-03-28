@@ -1,3 +1,5 @@
+import { DataSource } from 'typeorm';
+
 import settings from '../../_inputs/settings/settings';
 import { NOT_SAVE_FAILED_WALLET_ERRORS, SOMETHING_WENT_WRONG, SUCCESS_MESSAGES_TO_STOP_WALLET } from '../../constants';
 import {
@@ -35,13 +37,15 @@ export abstract class ModuleManager {
   private projectName: string;
 
   private walletsTotalCount: number;
+  private dbSource?: DataSource;
 
-  constructor({ walletWithModules, walletsTotalCount, baseNetwork, projectName }: IModuleManager) {
+  constructor({ walletWithModules, walletsTotalCount, baseNetwork, projectName, dbSource }: IModuleManager) {
     this.wallet = walletWithModules.wallet;
     this.modules = walletWithModules.modules;
     this.walletsTotalCount = walletsTotalCount;
     this.projectName = projectName;
     this.baseNetwork = baseNetwork;
+    this.dbSource = dbSource;
   }
 
   abstract findModule(_moduleName: ModuleNames): FindModuleReturnFc | undefined;
@@ -132,6 +136,7 @@ export abstract class ModuleManager {
 
       const moduleParams: TransformedModuleParams = {
         ...module,
+        dbSource: this.dbSource,
         nativePrices,
         projectName: this.projectName,
         baseNetwork: this.baseNetwork,

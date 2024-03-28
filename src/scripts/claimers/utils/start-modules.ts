@@ -9,12 +9,14 @@ export const startModulesCallback = ({
   nativePrices,
   projectName,
   baseNetwork,
+  dbSource,
 }: StartModulesCallbackArgs) =>
   new ModuleManager({
     walletWithModules,
     walletsTotalCount,
     projectName,
     baseNetwork,
+    dbSource,
   }).startModules({
     logsFolderName,
     currentWalletIndex,

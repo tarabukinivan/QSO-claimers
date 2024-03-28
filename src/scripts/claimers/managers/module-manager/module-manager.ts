@@ -1,7 +1,6 @@
 import { IModuleManager, ModuleManager as DefaultModuleManager } from '../../../../managers/module-manager';
 import { ModuleNames } from '../../../../types';
-import { execMakeCheckClaimPolyhedra, execMakeClaimPolyhedra } from '../../modules';
-import { execMakeTransferClaimPolyhedra } from '../../modules/polyhedra/transfer-claim';
+import { execMakeCheckClaimPolyhedra, execMakeClaimPolyhedra, execMakeTransferClaimPolyhedra } from '../../modules';
 
 export class ModuleManager extends DefaultModuleManager {
   constructor(args: IModuleManager) {

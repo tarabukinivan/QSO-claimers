@@ -195,9 +195,12 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
         if (e instanceof AxiosError) {
           errorMessage =
             e.response?.data.msg ||
-            e.response?.data.error ||
             e.response?.data.message ||
+            e.response?.data.error ||
             e.response?.data.error?.message ||
+            e.response?.data.error?.msg ||
+            e.response?.data.errors?.[0]?.message ||
+            e.response?.data.errors?.[0]?.msg ||
             errorMessage;
         }
 
@@ -205,6 +208,9 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
           errorMessage = `Unable to execute transaction. ${e.shortMessage}`;
         }
 
+        if (errorMessage.includes('Details: {')) {
+          errorMessage = errorMessage.split('"message":"')[1]?.split('"')[0] || errorMessage;
+        }
         const successMessage = SUCCESS_MESSAGES_TO_STOP_WALLET.find((error) => errorMessage.includes(error));
 
         const isNftHoldingError = errorMessage.includes(NFT_HOLDING_ERROR);

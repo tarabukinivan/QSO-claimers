@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 
 import settings from '../../_inputs/settings/settings';
+import { saveResultsFromDb } from '../../scripts/claimers/utils';
 import { WalletWithModules } from '../../types';
 import { getAllNativePrices } from '../currency-handlers';
 import { saveFailedWalletsToCSV } from '../file-handlers';
@@ -97,6 +98,7 @@ export const runMainScript = async (props: MainScriptArgs) => {
         callback: async (walletWithModules: WalletWithModules, _, currentWalletIndex) =>
           startModulesCallback({
             nativePrices,
+            dbSource,
             walletWithModules,
             logsFolderName,
             walletsTotalCount: walletsWithModules.length,
@@ -106,6 +108,14 @@ export const runMainScript = async (props: MainScriptArgs) => {
           }),
         logger,
       });
+
+      if (dbSource) {
+        await saveResultsFromDb({
+          dbSource,
+          projectName,
+          walletsWithModules,
+        });
+      }
 
       if (settings.useSavedModules) {
         updateSavedModulesFinishStatus({ projectName });

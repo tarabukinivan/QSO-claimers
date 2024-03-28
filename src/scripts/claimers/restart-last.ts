@@ -3,6 +3,7 @@ import yargs from 'yargs';
 import { EthClient } from '../../clients';
 import { restartLast } from '../../helpers/main/restart-last';
 import { BASE_NETWORK } from './constants';
+import dbSource from './db';
 import { buildLocalFolderName } from './logger';
 import { startModulesCallback } from './utils';
 
@@ -19,6 +20,7 @@ const [_, projectNameArg] = argv._;
     startModulesCallback,
     clientToPrepareWallets: EthClient,
     baseNetwork: BASE_NETWORK,
+    dbSource,
     projectName: `${projectName}` || '',
   });
 })();

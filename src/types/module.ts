@@ -1,3 +1,4 @@
+import { DataSource } from 'typeorm';
 import { Hex } from 'viem';
 
 import { CryptoCompareResult, TransactionCallbackResponse } from '../helpers';
@@ -143,6 +144,8 @@ export type TransformedModuleParams = Omit<ModuleParams, 'count'> & {
   baseNetwork: SupportedNetworks;
   projectName: string;
   nativePrices: CryptoCompareResult;
+
+  dbSource?: DataSource;
 };
 
 export type TransformedModuleConfig = Omit<ModuleConfig, 'count'> & {

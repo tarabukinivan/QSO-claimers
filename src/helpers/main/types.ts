@@ -49,6 +49,7 @@ export type StartModulesCallbackArgs = {
   currentWalletIndex: number;
   projectName: string;
   baseNetwork: SupportedNetworks;
+  dbSource?: DataSource;
 };
 
 type StartModulesCallback = (args: StartModulesCallbackArgs) => Promise<any>;

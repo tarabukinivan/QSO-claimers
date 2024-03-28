@@ -69,7 +69,6 @@ export class Logger {
     });
 
     if (this.isTransportExists(transportFile.filename)) {
-      console.error('Transport with the same filename already exists. Aborting.');
       return null;
     }
 

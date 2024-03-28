@@ -8,3 +8,4 @@ export * from './contracts';
 export * from './headers';
 export * from './messages';
 export * from './regexp';
+export * from './claim-statuses';

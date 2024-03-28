@@ -1,4 +1,5 @@
 import settings from '../../_inputs/settings/settings';
+import { saveResultsFromDb } from '../../scripts/claimers/utils';
 import { WalletWithModules } from '../../types';
 import { getAllNativePrices } from '../currency-handlers';
 import { saveFailedWalletsToCSV } from '../file-handlers';
@@ -13,13 +14,13 @@ export const restartLast = async ({
   projectName,
   baseNetwork,
   clientToPrepareWallets,
-  // dbSource: dbSourceProp,
+  dbSource: dbSourceProp,
   isDbInitialised = false,
   savedModules: savedModulesProp,
   walletsWithModules: walletsWithModulesProp,
   startModulesCallback,
 }: RestartLastArgs) => {
-  // const dbSource = isDbInitialised ? dbSourceProp : await dbSourceProp.initialize();
+  const dbSource = isDbInitialised ? dbSourceProp : await dbSourceProp?.initialize();
 
   await prepareWalletsData({ projectName, logsFolderName, client: clientToPrepareWallets });
 
@@ -63,11 +64,19 @@ export const restartLast = async ({
           currentWalletIndex,
           baseNetwork,
           projectName,
+          dbSource,
         }),
       logger,
     });
 
     const results = threadsResults.flat();
+    if (dbSource) {
+      await saveResultsFromDb({
+        dbSource,
+        projectName,
+        walletsWithModules: walletsWithModulesToRestart,
+      });
+    }
 
     updateSavedModulesFinishStatus({ projectName });
     saveFailedWalletsToCSV({ results, logger, projectName });

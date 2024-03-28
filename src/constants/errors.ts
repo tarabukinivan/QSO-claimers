@@ -30,14 +30,8 @@ export const ANTICAPTCHA_LOW_BALANCE_ERROR = 'Account has zero or negative balan
 export const ANTICAPTCHA_LOW_BALANCE_CUSTOM_ERROR = 'Anticaptcha account has low balance';
 export const UNABLE_GET_WITHDRAW_FEE_ERROR = 'Unable to get fee for current withdraw parameters';
 export const NOTHING_TO_CLAIM_ERROR = 'Nothing to claim';
-export const NOT_ELIGIBLE = 'Not eligible';
-export const CLAIMED_NOT_SENT = 'Claimed but not sent';
-export const CLAIMED_AND_SENT = 'Claimed and sent';
-export const NOT_CLAIMED = 'Not claimed yet';
-export const CLAIM_ERROR = 'Claim error';
-export const CLAIM_SUCCESS = 'Successfully claimed';
-export const TRANSFER_ERROR = 'Transfer error';
-export const TRANSFER_SUCCESS = 'Successfully transferred';
+
+export const DB_NOT_CONNECTED = 'DB not connected';
 
 export const IS_CLAIMED_ERROR = 'Already claimed';
 export const NFT_HOLDING_ERROR = 'Only hold NFT to sign in';

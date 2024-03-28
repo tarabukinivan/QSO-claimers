@@ -1,21 +1,21 @@
-import { fromHex, Hex, TransactionExecutionError } from 'viem';
+import { fromHex, Hex } from 'viem';
 
-import { CLAIM_ERROR, CLAIM_SUCCESS, NOT_ELIGIBLE } from '../../../../constants';
+import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
 import {
   decimalToInt,
   getAxiosConfig,
   getGasOptions,
   getHeaders,
   getSpentGas,
-  saveCheckerDataToCSV,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../../helpers';
 import { TransformedModuleParams } from '../../../../types';
 import { PROJECT_CONTRACTS } from '../../constants';
-import { getCheckClaimMessage } from '../../utils';
-import { CLAIM_ABI, FILENAME } from './constants';
+import { PolyhedraClaimEntity } from '../../db/entities';
+import { formatErrMessage, getCheckClaimMessage } from '../../utils';
+import { CLAIM_ABI } from './constants';
 import { getBalance, getProofData, getTransactionData } from './helpers';
 
 export const execMakeClaimPolyhedra = async (params: TransformedModuleParams) =>
@@ -26,50 +26,73 @@ export const execMakeClaimPolyhedra = async (params: TransformedModuleParams) =>
   });
 
 const makeClaimPolyhedra = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { client, gweiRange, gasLimitRange, wallet, network, proxyAgent } = params;
+  const { client, dbSource, gweiRange, gasLimitRange, wallet, network, proxyAgent } = params;
 
   const { walletAddress, walletClient, publicClient, explorerLink } = client;
 
-  const { int: nativeBalance } = await client.getNativeBalance();
-  const baseCheckerData = {
-    id: wallet.id,
-    walletAddress,
-    network,
-    nativeBalance: nativeBalance.toFixed(6),
-  };
-  const fileName = FILENAME;
-
-  const headers = getHeaders();
-  const config = await getAxiosConfig({
-    proxyAgent,
-    headers,
-  });
-
-  const proofData = await getProofData({
-    network,
-    config,
-    walletAddress,
-  });
-  if (!proofData) {
-    throw new Error(NOT_ELIGIBLE);
+  if (!dbSource) {
+    return {
+      status: 'critical',
+      message: DB_NOT_CONNECTED,
+    };
   }
 
-  const amountWei = fromHex(proofData.amount, 'bigint');
-  const amountInt = decimalToInt({
-    amount: amountWei,
-    decimals: 18,
+  let nativeBalance = 0;
+  let amountInt = 0;
+  let currentBalance = 0;
+  const dbRepo = dbSource.getRepository(PolyhedraClaimEntity);
+  let walletInDb = await dbRepo.findOne({
+    where: {
+      walletId: wallet.id,
+      index: wallet.index,
+    },
   });
-
-  const feeOptions = await getGasOptions({
-    gweiRange,
-    gasLimitRange,
-    network,
-    publicClient,
-  });
-
-  const currentBalance = await getBalance(client);
+  if (!walletInDb) {
+    const created = dbRepo.create({
+      walletId: wallet.id,
+      index: wallet.index,
+      walletAddress,
+      network,
+      nativeBalance,
+      status: 'New',
+    });
+    walletInDb = await dbRepo.save(created);
+  }
 
   try {
+    const { int } = await client.getNativeBalance();
+    nativeBalance = int;
+
+    const headers = getHeaders();
+    const config = await getAxiosConfig({
+      proxyAgent,
+      headers,
+    });
+
+    const proofData = await getProofData({
+      network,
+      config,
+      walletAddress,
+    });
+    if (!proofData) {
+      throw new Error(CLAIM_STATUSES.NOT_ELIGIBLE);
+    }
+
+    const amountWei = fromHex(proofData.amount, 'bigint');
+    amountInt = decimalToInt({
+      amount: amountWei,
+      decimals: 18,
+    });
+
+    const feeOptions = await getGasOptions({
+      gweiRange,
+      gasLimitRange,
+      network,
+      publicClient,
+    });
+
+    currentBalance = await getBalance(client);
+
     const txHash = await walletClient.writeContract({
       address: PROJECT_CONTRACTS.zkClaim as Hex,
       abi: CLAIM_ABI,
@@ -86,39 +109,27 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
     });
     const claimGasSpent = transferData ? getSpentGas(transferData.gas_price, transferData.gas_used) : 0;
 
-    await saveCheckerDataToCSV({
-      data: {
-        ...baseCheckerData,
-        status: CLAIM_SUCCESS,
-        claimAmount: amountInt,
-        balance: currentBalance + amountInt,
-        gasSpent: claimGasSpent.toFixed(6),
-      },
-      fileName,
+    await dbRepo.update(walletInDb.id, {
+      status: CLAIM_STATUSES.CLAIM_SUCCESS,
+      claimAmount: amountInt,
+      nativeBalance: +nativeBalance.toFixed(6),
+      balance: currentBalance + amountInt,
+      gasSpent: +claimGasSpent.toFixed(6),
     });
 
     return {
       status: 'success',
       txHash,
       explorerLink,
-      message: getCheckClaimMessage(CLAIM_SUCCESS),
+      message: getCheckClaimMessage(CLAIM_STATUSES.CLAIM_SUCCESS),
     };
   } catch (err) {
-    let errorMessage = (err as Error).message;
-
-    if (err instanceof TransactionExecutionError) {
-      errorMessage = err.shortMessage;
-    }
-
-    await saveCheckerDataToCSV({
-      data: {
-        ...baseCheckerData,
-        status: CLAIM_ERROR,
-        claimAmount: amountInt,
-        balance: currentBalance,
-        error: errorMessage.replace(',', ''),
-      },
-      fileName,
+    await dbRepo.update(walletInDb.id, {
+      status: CLAIM_STATUSES.CLAIM_ERROR,
+      claimAmount: amountInt,
+      nativeBalance: +nativeBalance.toFixed(6),
+      balance: currentBalance,
+      error: formatErrMessage(err),
     });
 
     throw err;

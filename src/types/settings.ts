@@ -1,6 +1,7 @@
+import { CLAIM_STATUSES } from '../constants';
 import { RangeByIdFilter } from '../helpers';
 import { AutoGasNetworks } from '../managers/auto-gas/types';
-import { MoreOrLessString, NumberRange } from './common';
+import { NumberRange } from './common';
 import { UserModuleConfig } from './module';
 import { SupportedNetworks } from './networks';
 import { AvailableSwapTokens } from './tokens';
@@ -37,20 +38,8 @@ interface InvitesAmount {}
 
 export interface FilterSettings {
   useFilter: boolean;
-  usePrevData: boolean;
 
-  hasThisMonthTx: boolean | null;
-  txCount: MoreOrLessString | null;
-  days: MoreOrLessString | null;
-  weeks: MoreOrLessString | null;
-  months: MoreOrLessString | null;
-  contracts: MoreOrLessString | null;
-  balanceETH: MoreOrLessString | null;
-  balanceUSDT: MoreOrLessString | null;
-  balanceUSDC: MoreOrLessString | null;
-  balanceDAI: MoreOrLessString | null;
-  balance_eETH: MoreOrLessString | null;
-  volume: MoreOrLessString | null;
+  status: (typeof CLAIM_STATUSES)[keyof typeof CLAIM_STATUSES] | null;
 }
 
 export type MinTokenBalanceSettings = Partial<Record<AvailableSwapTokens, number>>;
@@ -58,6 +47,7 @@ export type MinTokenBalanceSettings = Partial<Record<AvailableSwapTokens, number
 export interface DefaultSettings {
   routes?: Route[];
 
+  filters: FilterSettings;
   shuffle: ShuffleSettings;
   threads: number;
   txAttempts: number;
@@ -72,6 +62,7 @@ export interface DefaultSettings {
   useRestartInMain: boolean;
   useSavedModules: boolean;
   idFilter: RangeByIdFilter;
+
   minTokenBalance: MinTokenBalanceSettings;
 }
 

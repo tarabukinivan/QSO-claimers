@@ -41,7 +41,7 @@ export const prepareWallets = async (params: PrepareWallets) => {
 
   wallets = getRangedByIdWallets(wallets, settings.idFilter, params.logger);
 
-  const { useFilter } = { useFilter: false };
+  const { useFilter } = settings.filters;
 
   if (useFilter && filterWalletsCallback && dbSource) {
     wallets = await filterWalletsCallback({ wallets, dbSource, logger: params.logger, nativePrices });
