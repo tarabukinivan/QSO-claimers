@@ -40,24 +40,28 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
   let nativeBalance = 0;
   let amountInt = 0;
   let currentBalance = 0;
+
   const dbRepo = dbSource.getRepository(PolyhedraClaimEntity);
+
   let walletInDb = await dbRepo.findOne({
     where: {
       walletId: wallet.id,
       index: wallet.index,
     },
   });
-  if (!walletInDb) {
-    const created = dbRepo.create({
-      walletId: wallet.id,
-      index: wallet.index,
-      walletAddress,
-      network,
-      nativeBalance,
-      status: 'New',
-    });
-    walletInDb = await dbRepo.save(created);
+  if (walletInDb) {
+    await dbRepo.remove(walletInDb);
   }
+
+  const created = dbRepo.create({
+    walletId: wallet.id,
+    index: wallet.index,
+    walletAddress,
+    network,
+    nativeBalance,
+    status: 'New',
+  });
+  walletInDb = await dbRepo.save(created);
 
   try {
     const { int } = await client.getNativeBalance();

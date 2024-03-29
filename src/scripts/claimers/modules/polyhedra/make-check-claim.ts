@@ -46,17 +46,20 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
       index: wallet.index,
     },
   });
-  if (!walletInDb) {
-    const created = dbRepo.create({
-      walletId: wallet.id,
-      index: wallet.index,
-      walletAddress,
-      network,
-      nativeBalance,
-      status: 'New',
-    });
-    walletInDb = await dbRepo.save(created);
+
+  if (walletInDb) {
+    await dbRepo.remove(walletInDb);
   }
+
+  const created = dbRepo.create({
+    walletId: wallet.id,
+    index: wallet.index,
+    walletAddress,
+    network,
+    nativeBalance,
+    status: 'New',
+  });
+  walletInDb = await dbRepo.save(created);
 
   const headers = getHeaders();
   const config = await getAxiosConfig({
