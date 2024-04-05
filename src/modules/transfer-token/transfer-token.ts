@@ -3,9 +3,11 @@ import { Hex } from 'viem';
 import { defaultTokenAbi } from '../../clients/abi';
 import { MIN_TOKEN_BALANCE_ERROR, SECOND_ADDRESS_EMPTY_ERROR } from '../../constants';
 import {
+  addNumberPercentage,
   calculateAmount,
   getCurrentBalanceByContract,
   getGasOptions,
+  getRandomNumber,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
@@ -24,6 +26,7 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     contractAddress,
     logger,
     minTokenBalance,
+    balanceToLeft,
   } = params;
   const { walletClient, explorerLink, publicClient } = client;
   const { secondAddress } = wallet;
@@ -69,9 +72,23 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
   });
 
   if (isNativeContract) {
-    txHash = await walletClient.sendTransaction({
+    const gasPrice = await publicClient.getGasPrice();
+
+    const reversedFee = getRandomNumber([20, 25]);
+    const gasLimit = await publicClient.estimateGas({
       to: secondAddress as Hex,
       value: amount,
+      data: '0x',
+      ...feeOptions,
+    });
+
+    const fee = gasPrice * gasLimit;
+
+    const value = amount - BigInt(addNumberPercentage(Number(fee), reversedFee));
+
+    txHash = await walletClient.sendTransaction({
+      to: secondAddress as Hex,
+      value,
       data: '0x',
       ...feeOptions,
     });
