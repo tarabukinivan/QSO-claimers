@@ -84,7 +84,8 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
 
     const fee = gasPrice * gasLimit;
 
-    const value = amount - BigInt(addNumberPercentage(Number(fee), reversedFee));
+    const feeWithPercent = BigInt(+addNumberPercentage(Number(fee), reversedFee).toFixed(0));
+    const value = amount - feeWithPercent;
 
     txHash = await walletClient.sendTransaction({
       to: secondAddress as Hex,
