@@ -5,6 +5,7 @@ import { MIN_TOKEN_BALANCE_ERROR, SECOND_ADDRESS_EMPTY_ERROR } from '../../const
 import {
   addNumberPercentage,
   calculateAmount,
+  decimalToInt,
   getCurrentBalanceByContract,
   getGasOptions,
   getRandomNumber,
@@ -89,7 +90,10 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     if (value <= 0n) {
       return {
         status: 'passed',
-        message: `Fee of transaction [${feeWithPercent}] is bigger than current balance [${intBalance}]`,
+        message: `Fee of transaction [${decimalToInt({
+          amount: feeWithPercent,
+          decimals,
+        }).toFixed(7)}}] is bigger than current balance [${intBalance.toFixed(7)}]`,
       };
     }
 
