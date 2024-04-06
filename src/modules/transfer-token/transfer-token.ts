@@ -86,7 +86,7 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     const feeWithPercent = BigInt(+addNumberPercentage(Number(fee), reversedFee).toFixed(0));
     const value = amount - feeWithPercent;
 
-    if (value < 0n) {
+    if (value <= 0n) {
       return {
         status: 'passed',
         message: `Fee of transaction [${feeWithPercent}] is bigger than current balance [${intBalance}]`,
