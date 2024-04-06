@@ -84,7 +84,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
       });
 
       return {
-        status: 'success',
+        status: 'passed',
         message: getCheckClaimMessage(CLAIM_STATUSES.NOT_ELIGIBLE),
       };
     }

@@ -79,7 +79,10 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
       walletAddress,
     });
     if (!proofData) {
-      throw new Error(CLAIM_STATUSES.NOT_ELIGIBLE);
+      return {
+        status: 'passed',
+        message: getCheckClaimMessage(CLAIM_STATUSES.NOT_ELIGIBLE),
+      };
     }
 
     const amountWei = fromHex(proofData.amount, 'bigint');
