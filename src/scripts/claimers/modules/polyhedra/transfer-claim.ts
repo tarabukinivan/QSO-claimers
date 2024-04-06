@@ -121,6 +121,10 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       throw new Error('Claim was not found');
     }
 
+    if (amountToTransfer === 0) {
+      throw new Error('Amount is zero');
+    }
+
     claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used);
 
     logger.info(`Sending ${amountToTransfer} ZK to ${secondAddress}...`);
