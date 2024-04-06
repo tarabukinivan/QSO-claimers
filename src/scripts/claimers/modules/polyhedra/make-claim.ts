@@ -79,6 +79,10 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
       walletAddress,
     });
     if (!proofData) {
+      await dbRepo.update(walletInDb.id, {
+        status: CLAIM_STATUSES.NOT_ELIGIBLE,
+      });
+
       return {
         status: 'passed',
         message: getCheckClaimMessage(CLAIM_STATUSES.NOT_ELIGIBLE),
