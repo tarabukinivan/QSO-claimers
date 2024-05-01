@@ -292,8 +292,8 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     count: [1, 1],
     indexGroup: 0,
 
-    // Сеть для которой выполнять модуль
-    network: 'eth',
+    // Сеть для которой выполнять модуль eth | bsc
+    network: 'bsc',
   },
   'polyhedra-claim': {
     count: [1, 1],

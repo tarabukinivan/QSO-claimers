@@ -1,3 +1,8 @@
+import { Hex } from 'viem';
+
+import { SupportedNetworks } from '../../../../types';
+import { PROJECT_CONTRACTS } from '../../constants';
+
 export const FILENAME = 'polyhedra-claim';
 export const CLAIM_ABI = [
   {
@@ -120,3 +125,8 @@ export const CLAIM_ABI = [
   { inputs: [], name: 'withdraw', outputs: [], stateMutability: 'nonpayable', type: 'function' },
 ];
 export const DECIMALS = 18;
+
+export const CONTRACT_MAP: Partial<Record<SupportedNetworks, Hex>> = {
+  bsc: PROJECT_CONTRACTS.bscZkClaim,
+  eth: PROJECT_CONTRACTS.ethZkClaim,
+};

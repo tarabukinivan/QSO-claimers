@@ -1,6 +1,7 @@
 import { fromHex } from 'viem';
 
-import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
+import { MORALIS_KEY } from '../../../../_inputs/settings';
+import { CLAIM_STATUSES, DB_NOT_CONNECTED, EMPTY_MORALIS_KEY } from '../../../../constants';
 import {
   decimalToInt,
   getAxiosConfig,
@@ -14,7 +15,7 @@ import { TransformedModuleParams } from '../../../../types';
 import { PROJECT_CONTRACTS } from '../../constants';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
-import { DECIMALS } from './constants';
+import { CONTRACT_MAP, DECIMALS } from './constants';
 import { getBalance, getProofData, getTransactionsData } from './helpers';
 
 export const execMakeCheckClaimPolyhedra = async (params: TransformedModuleParams) =>
@@ -33,6 +34,13 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
     return {
       status: 'critical',
       message: DB_NOT_CONNECTED,
+    };
+  }
+
+  if (!MORALIS_KEY) {
+    return {
+      status: 'critical',
+      message: EMPTY_MORALIS_KEY,
     };
   }
 
@@ -68,6 +76,14 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
   });
 
   try {
+    const contract = CONTRACT_MAP[network];
+    if (!contract) {
+      return {
+        status: 'warning',
+        message: `Unsupported network ${network}`,
+      };
+    }
+
     const { int } = await client.getNativeBalance();
     nativeBalance = +int.toFixed(6);
 
@@ -75,6 +91,7 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
       network,
       config,
       walletAddress,
+      chainId: client.chainData.id,
     };
     const proofData = await getProofData(getDataProps);
 
@@ -95,21 +112,33 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
       decimals: DECIMALS,
     });
 
-    const txsData = await getTransactionsData({
-      config,
-      walletAddress,
-      network,
-    });
+    const txsData = await getTransactionsData(getDataProps);
 
+    // TODO: move it to the separate helper/manager
     const claimTxData = txsData?.find(
-      ({ method, to }: { method: null | string; to: { hash: string } }) =>
-        method === 'claim' && to.hash.toLowerCase() === PROJECT_CONTRACTS.zkClaim?.toLowerCase()
+      ({
+        method,
+        to,
+        input,
+        to_address, // TODO: move this type to the interface
+      }: {
+        method: null | string;
+        to: { hash: string };
+        input: string;
+        to_address: string;
+      }) => {
+        const toContractLc = contract.toLowerCase();
+
+        return network === 'bsc'
+          ? input.startsWith('0x2e7ba6ef') && to_address.toLowerCase() === toContractLc
+          : method === 'claim' && to.hash.toLowerCase() === toContractLc;
+      }
     );
 
     const currentBalance = await getBalance(client);
 
     if (claimTxData) {
-      const claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used);
+      const claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used || claimTxData.receipt_gas_used);
 
       if (currentBalance >= amountInt) {
         await dbRepo.update(walletInDb.id, {
@@ -127,8 +156,22 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
       }
 
       const transferredTxData = txsData?.find(
-        ({ method, to }: { method: null | string; to: { hash: string } }) =>
-          method === 'transfer' && to.hash.toLowerCase() === PROJECT_CONTRACTS.zkAddress?.toLowerCase()
+        ({
+          method,
+          to,
+          input,
+          to_address,
+        }: {
+          method: null | string;
+          to: { hash: string };
+          input: string;
+          to_address: string;
+        }) => {
+          const toContractLc = PROJECT_CONTRACTS.zkAddress?.toLowerCase();
+          return network === 'bsc'
+            ? input.startsWith('0xa9059cbb') && to_address.toLowerCase() === toContractLc
+            : method === 'transfer' && to.hash.toLowerCase() === toContractLc;
+        }
       );
 
       const claimTxParams = claimTxData?.decoded_input.parameters;

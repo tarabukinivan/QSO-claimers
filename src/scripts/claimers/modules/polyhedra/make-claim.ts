@@ -1,6 +1,7 @@
-import { fromHex, Hex } from 'viem';
+import { fromHex } from 'viem';
 
-import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
+import { MORALIS_KEY } from '../../../../_inputs/settings';
+import { CLAIM_STATUSES, DB_NOT_CONNECTED, EMPTY_MORALIS_KEY } from '../../../../constants';
 import {
   decimalToInt,
   getAxiosConfig,
@@ -12,10 +13,9 @@ import {
   transactionWorker,
 } from '../../../../helpers';
 import { TransformedModuleParams } from '../../../../types';
-import { PROJECT_CONTRACTS } from '../../constants';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
-import { CLAIM_ABI } from './constants';
+import { CLAIM_ABI, CONTRACT_MAP } from './constants';
 import { getBalance, getProofData, getTransactionData } from './helpers';
 
 export const execMakeClaimPolyhedra = async (params: TransformedModuleParams) =>
@@ -34,6 +34,13 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
     return {
       status: 'critical',
       message: DB_NOT_CONNECTED,
+    };
+  }
+
+  if (!MORALIS_KEY) {
+    return {
+      status: 'critical',
+      message: EMPTY_MORALIS_KEY,
     };
   }
 
@@ -64,6 +71,13 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
   walletInDb = await dbRepo.save(created);
 
   try {
+    const contract = CONTRACT_MAP[network];
+    if (!contract) {
+      return {
+        status: 'warning',
+        message: `Unsupported network ${network}`,
+      };
+    }
     const { int } = await client.getNativeBalance();
     nativeBalance = +int.toFixed(6);
 
@@ -77,6 +91,7 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
       network,
       config,
       walletAddress,
+      chainId: client.chainData.id,
     });
     if (!proofData) {
       await dbRepo.update(walletInDb.id, {
@@ -105,7 +120,7 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
     currentBalance = await getBalance(client);
 
     const txHash = await walletClient.writeContract({
-      address: PROJECT_CONTRACTS.zkClaim as Hex,
+      address: contract,
       abi: CLAIM_ABI,
       functionName: 'claim',
       args: [proofData.index, walletAddress, amountWei, proofData.proof],
@@ -114,11 +129,14 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
 
     await client.waitTxReceipt(txHash);
 
-    const transferData = await getTransactionData({
+    const claimData = await getTransactionData({
       config,
       txHash,
+      chainId: client.chainData.id,
+      network,
     });
-    const claimGasSpent = transferData ? getSpentGas(transferData.gas_price, transferData.gas_used) : 0;
+
+    const claimGasSpent = claimData ? getSpentGas(claimData.gas_price, claimData.gas_used) : 0;
 
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.CLAIM_SUCCESS,

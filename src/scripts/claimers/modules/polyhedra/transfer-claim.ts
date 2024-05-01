@@ -1,7 +1,8 @@
 import { Hex } from 'viem';
 
+import { MORALIS_KEY } from '../../../../_inputs/settings';
 import { defaultTokenAbi } from '../../../../clients/abi';
-import { DB_NOT_CONNECTED, SECOND_ADDRESS_EMPTY_ERROR, CLAIM_STATUSES } from '../../../../constants';
+import { DB_NOT_CONNECTED, SECOND_ADDRESS_EMPTY_ERROR, CLAIM_STATUSES, EMPTY_MORALIS_KEY } from '../../../../constants';
 import {
   calculateAmount,
   getAxiosConfig,
@@ -18,7 +19,7 @@ import { TransformedModuleParams } from '../../../../types';
 import { PROJECT_CONTRACTS } from '../../constants';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
-import { DECIMALS } from './constants';
+import { CONTRACT_MAP, DECIMALS } from './constants';
 import { getBalance, getTransactionData, getTransactionsData } from './helpers';
 
 export const execMakeTransferClaimPolyhedra = async (params: TransformedModuleParams) =>
@@ -54,6 +55,13 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     };
   }
 
+  if (!MORALIS_KEY) {
+    return {
+      status: 'critical',
+      message: EMPTY_MORALIS_KEY,
+    };
+  }
+
   const dbRepo = dbSource.getRepository(PolyhedraClaimEntity);
 
   let walletInDb = await dbRepo.findOne({
@@ -77,6 +85,14 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
   walletInDb = await dbRepo.save(created);
 
   try {
+    const contract = CONTRACT_MAP[network];
+    if (!contract) {
+      return {
+        status: 'warning',
+        message: `Unsupported network ${network}`,
+      };
+    }
+
     const { int } = await client.getNativeBalance();
     nativeBalance = +int.toFixed(6);
 
@@ -104,6 +120,7 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       config,
       walletAddress,
       network,
+      chainId: client.chainData.id,
     });
 
     const amountToTransfer = calculateAmount({
@@ -113,8 +130,23 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     });
 
     const claimTxData = txsData?.find(
-      ({ method, to }: { method: null | string; to: { hash: string } }) =>
-        method === 'claim' && to.hash.toLowerCase() === PROJECT_CONTRACTS.zkClaim?.toLowerCase()
+      ({
+        method,
+        to,
+        input,
+        to_address,
+      }: {
+        method: null | string;
+        to: { hash: string };
+        input: string;
+        to_address: string;
+      }) => {
+        const toContractLc = contract.toLowerCase();
+
+        return network === 'bsc'
+          ? input.startsWith('0x2e7ba6ef') && to_address.toLowerCase() === toContractLc
+          : method === 'claim' && to.hash.toLowerCase() === toContractLc;
+      }
     );
 
     if (!claimTxData) {
@@ -148,6 +180,8 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     const transferData = await getTransactionData({
       config,
       txHash,
+      chainId: client.chainData.id,
+      network,
     });
     const transferGasSpent = transferData ? getSpentGas(transferData.gas_price, transferData.gas_used) : 0;
 
