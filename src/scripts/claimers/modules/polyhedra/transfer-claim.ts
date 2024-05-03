@@ -150,11 +150,17 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     );
 
     if (!claimTxData) {
-      throw new Error('Claim was not found');
+      return {
+        status: 'warning',
+        message: 'Claim was not found',
+      };
     }
 
     if (amountToTransfer === 0) {
-      throw new Error('Amount is zero');
+      return {
+        status: 'warning',
+        message: 'Amount is zero',
+      };
     }
 
     claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used);
