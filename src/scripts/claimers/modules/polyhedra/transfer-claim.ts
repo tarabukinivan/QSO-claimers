@@ -18,7 +18,6 @@ import {
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../../helpers';
-import logger from '../../../../logger';
 import { Moralis } from '../../../../managers/moralis';
 import { TransformedModuleParams } from '../../../../types';
 import { PROJECT_CONTRACTS } from '../../constants';
@@ -45,6 +44,7 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     gweiRange,
     gasLimitRange,
     network,
+    logger,
   } = params;
 
   const { walletClient, walletAddress, publicClient, explorerLink } = client;
