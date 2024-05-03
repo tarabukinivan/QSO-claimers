@@ -12,4 +12,3 @@ export * from './main';
 export * from './captcha';
 export * from './gas';
 export * from './clients';
-export * from './moralis';

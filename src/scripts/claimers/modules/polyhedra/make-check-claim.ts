@@ -1,21 +1,21 @@
-import { fromHex } from 'viem';
+import { fromHex, Hex } from 'viem';
 
 import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
 import {
   decimalToInt,
   getAxiosConfig,
   getHeaders,
-  getSpentGas,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../../helpers';
+import { Moralis } from '../../../../managers/moralis';
 import { TransformedModuleParams } from '../../../../types';
 import { PROJECT_CONTRACTS } from '../../constants';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
 import { CONTRACT_MAP, DECIMALS } from './constants';
-import { getBalance, getProofData, getTransactionsData } from './helpers';
+import { getBalance, getProofData } from './helpers';
 
 export const execMakeCheckClaimPolyhedra = async (params: TransformedModuleParams) =>
   transactionWorker({
@@ -26,6 +26,8 @@ export const execMakeCheckClaimPolyhedra = async (params: TransformedModuleParam
 
 const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
   const { client, dbSource, network, wallet, proxyAgent } = params;
+
+  const moralis = new Moralis();
 
   const { walletAddress } = client;
 
@@ -104,33 +106,21 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
       decimals: DECIMALS,
     });
 
-    const txsData = await getTransactionsData(getDataProps);
-
-    // TODO: move it to the separate helper/manager
-    const claimTxData = txsData?.find(
-      ({
-        method,
-        to,
-        input,
-        to_address, // TODO: move this type to the interface
-      }: {
-        method: null | string;
-        to: { hash: string };
-        input: string;
-        to_address: string;
-      }) => {
-        const toContractLc = contract.toLowerCase();
-
-        return network === 'bsc'
-          ? input.startsWith('0x2e7ba6ef') && to_address.toLowerCase() === toContractLc
-          : method === 'claim' && to.hash.toLowerCase() === toContractLc;
-      }
-    );
-
     const currentBalance = await getBalance(client);
 
+    const txsData = await moralis.getTxs({
+      walletAddress,
+      chainId: client.chainData.id,
+    });
+
+    const claimTxData = moralis.getTxData({
+      txs: txsData,
+      method: '0x2e7ba6ef',
+      to: contract,
+    });
+
     if (claimTxData) {
-      const claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used || claimTxData.receipt_gas_used);
+      const claimGasSpent = moralis.getSpentGas(claimTxData);
 
       if (currentBalance >= amountInt) {
         await dbRepo.update(walletInDb.id, {
@@ -147,31 +137,16 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
         };
       }
 
-      const transferredTxData = txsData?.find(
-        ({
-          method,
-          to,
-          input,
-          to_address,
-        }: {
-          method: null | string;
-          to: { hash: string };
-          input: string;
-          to_address: string;
-        }) => {
-          const toContractLc = PROJECT_CONTRACTS.zkAddress?.toLowerCase();
-          return network === 'bsc'
-            ? input.startsWith('0xa9059cbb') && to_address.toLowerCase() === toContractLc
-            : method === 'transfer' && to.hash.toLowerCase() === toContractLc;
-        }
-      );
+      const transferredTxData = moralis.getTxData({
+        txs: txsData,
+        method: '0xa9059cbb',
+        to: PROJECT_CONTRACTS.zkAddress as Hex,
+      });
 
       if (currentBalance < amountInt) {
         const transferred = amountInt - currentBalance;
 
-        const transferGasSpent = transferredTxData
-          ? getSpentGas(transferredTxData.gas_price, transferredTxData.gas_used)
-          : 0;
+        const transferGasSpent = moralis.getSpentGas(transferredTxData);
 
         await dbRepo.update(walletInDb.id, {
           status: CLAIM_STATUSES.CLAIMED_AND_SENT,

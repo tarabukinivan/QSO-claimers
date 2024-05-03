@@ -1,10 +1,10 @@
 import settings from '../../_inputs/settings/settings';
+import { Moralis } from '../../managers/moralis';
 import { saveResultsFromDb } from '../../scripts/claimers/utils';
 import { WalletWithModules } from '../../types';
 import { getAllNativePrices } from '../currency-handlers';
 import { saveFailedWalletsToCSV } from '../file-handlers';
 import { getSavedModules, savePreparedModules, updateSavedModulesFinishStatus } from '../modules/save-modules';
-import { initMoralis } from '../moralis';
 import { initLocalLogger } from '../show-logs';
 import { prepareSavedWalletsWithModules, prepareWalletsData } from '../wallets';
 import { startWithThreads } from './threads';
@@ -32,7 +32,8 @@ export const restartLast = async ({
   const logger = initLocalLogger(logsFolderName, lastRoute);
   logger.setLoggerMeta({ moduleName: 'RestartLast' });
 
-  await initMoralis(logger);
+  const moralis = new Moralis();
+  await moralis.init(logger);
 
   try {
     const walletsWithModulesToRestart = walletsWithModulesProp || prepareSavedWalletsWithModules(savedModules);

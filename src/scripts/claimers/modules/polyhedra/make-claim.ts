@@ -1,4 +1,4 @@
-import { fromHex } from 'viem';
+import { fromHex, Hex } from 'viem';
 
 import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
 import {
@@ -6,17 +6,17 @@ import {
   getAxiosConfig,
   getGasOptions,
   getHeaders,
-  getSpentGas,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../../helpers';
+import { Moralis } from '../../../../managers/moralis';
 import { TransformedModuleParams } from '../../../../types';
 import { PROJECT_CONTRACTS } from '../../constants';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
 import { CLAIM_ABI, CONTRACT_MAP } from './constants';
-import { getBalance, getProofData, getTransactionData, getTransactionsData } from './helpers';
+import { getBalance, getProofData } from './helpers';
 
 export const execMakeClaimPolyhedra = async (params: TransformedModuleParams) =>
   transactionWorker({
@@ -27,6 +27,8 @@ export const execMakeClaimPolyhedra = async (params: TransformedModuleParams) =>
 
 const makeClaimPolyhedra = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
   const { client, dbSource, gweiRange, gasLimitRange, wallet, network, proxyAgent } = params;
+
+  const moralis = new Moralis();
 
   const { walletAddress, walletClient, publicClient, explorerLink } = client;
 
@@ -106,36 +108,19 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
 
     currentBalance = await getBalance(client);
 
-    const txsData = await getTransactionsData({
-      config,
+    const txsData = await moralis.getTxs({
       walletAddress,
-      network,
       chainId: client.chainData.id,
     });
 
-    const claimTxData = txsData?.find(
-      ({
-        method,
-        to,
-        input,
-        to_address,
-      }: {
-        method: null | string;
-        to: { hash: string };
-        input: string;
-        to_address: string;
-      }) => {
-        const toContractLc = contract.toLowerCase();
+    const claimTxData = moralis.getTxData({
+      txs: txsData,
+      method: '0x2e7ba6ef',
+      to: contract,
+    });
 
-        return network === 'bsc'
-          ? input.startsWith('0x2e7ba6ef') && to_address.toLowerCase() === toContractLc
-          : method === 'claim' && to.hash.toLowerCase() === toContractLc;
-      }
-    );
-
-    // TODO: Move to separate helper
     if (claimTxData) {
-      const claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used || claimTxData.receipt_gas_used);
+      const claimGasSpent = moralis.getSpentGas(claimTxData);
 
       if (currentBalance >= amountInt) {
         await dbRepo.update(walletInDb.id, {
@@ -152,31 +137,16 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
         };
       }
 
-      const transferredTxData = txsData?.find(
-        ({
-          method,
-          to,
-          input,
-          to_address,
-        }: {
-          method: null | string;
-          to: { hash: string };
-          input: string;
-          to_address: string;
-        }) => {
-          const toContractLc = PROJECT_CONTRACTS.zkAddress?.toLowerCase();
-          return network === 'bsc'
-            ? input.startsWith('0xa9059cbb') && to_address.toLowerCase() === toContractLc
-            : method === 'transfer' && to.hash.toLowerCase() === toContractLc;
-        }
-      );
+      const transferredTxData = moralis.getTxData({
+        txs: txsData,
+        method: '0xa9059cbb',
+        to: PROJECT_CONTRACTS.zkAddress as Hex,
+      });
 
       if (currentBalance < amountInt) {
         const transferred = amountInt - currentBalance;
 
-        const transferGasSpent = transferredTxData
-          ? getSpentGas(transferredTxData.gas_price, transferredTxData.gas_used)
-          : 0;
+        const transferGasSpent = moralis.getSpentGas(transferredTxData);
 
         await dbRepo.update(walletInDb.id, {
           status: CLAIM_STATUSES.CLAIMED_AND_SENT,
@@ -211,14 +181,12 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
 
     await client.waitTxReceipt(txHash);
 
-    const claimData = await getTransactionData({
-      config,
+    const claimData = await moralis.getTx({
       txHash,
       chainId: client.chainData.id,
-      network,
     });
 
-    const claimGasSpent = claimData ? getSpentGas(claimData.gas_price, claimData.gas_used) : 0;
+    const claimGasSpent = moralis.getSpentGas(claimData);
 
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.CLAIM_SUCCESS,

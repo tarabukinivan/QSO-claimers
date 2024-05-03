@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 
 import settings from '../../_inputs/settings/settings';
+import { Moralis } from '../../managers/moralis';
 import { saveResultsFromDb } from '../../scripts/claimers/utils';
 import { WalletWithModules } from '../../types';
 import { getAllNativePrices } from '../currency-handlers';
@@ -12,7 +13,6 @@ import {
   savePreparedModules,
   updateSavedModulesFinishStatus,
 } from '../modules/save-modules';
-import { initMoralis } from '../moralis';
 import { initLocalLogger, showLogSelectedModules } from '../show-logs';
 import { sleep } from '../utils';
 import { prepareSavedWalletsWithModules, prepareWalletsData, prepareWalletsWithModules } from '../wallets';
@@ -46,7 +46,9 @@ export const runMainScript = async (props: MainScriptArgs) => {
 
   const logger = initLocalLogger(logsFolderName, 'main');
   logger.setLoggerMeta({ moduleName: 'Main' });
-  await initMoralis(logger);
+
+  const moralis = new Moralis();
+  await moralis.init(logger);
 
   const { threads } = settings;
 

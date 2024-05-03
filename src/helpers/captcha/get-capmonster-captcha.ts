@@ -6,7 +6,6 @@ import { getHeaders, sleep } from '../utils';
 
 const CAPMONSTER_API_URL = 'https://api.anti-captcha.com';
 
-// TODO: update later ?
 interface GetCapmonsterCaptcha {
   taskType: null;
   websiteURL: string;

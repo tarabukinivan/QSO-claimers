@@ -42,12 +42,9 @@ export const NO_CURRENCY_ERROR = 'User does not own this currency';
 export const NO_TOKEN_ERROR = 'You do not have enough of this token in your balance';
 export const SOMETHING_WENT_WRONG = 'Something went wrong';
 
-// TODO: remove this from here and module manager
-// TODO: in greenfield module replace on this message with status 'passed'
 export const MAX_TXS_COUNT_IS_DONE_MESSAGE = 'already equals or more than provided maxTxsCount';
 export const SUCCESS_MESSAGES_TO_STOP_WALLET = [MAX_TXS_COUNT_IS_DONE_MESSAGE];
 
-// TODO: double-check okx
 export const CRITICAL_ERRORS_MAP = {
   'The total cost (gas * gas fee + value)': LOW_BALANCE_ERROR,
   [ANTICAPTCHA_LOW_BALANCE_ERROR]: ANTICAPTCHA_LOW_BALANCE_CUSTOM_ERROR,
