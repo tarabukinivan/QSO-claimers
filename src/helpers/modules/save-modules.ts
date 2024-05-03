@@ -29,6 +29,32 @@ export const clearSavedModules = (projectName: string) => {
   printResults({ data: '{}', fileName, outputPath: OUTPUTS_JSON_FOLDER });
 };
 
+export const clearSavedWallet = (wallet: WalletData, projectName: string) => {
+  const fileName = getFileNameWithPrefix(projectName, 'saved-modules.json');
+
+  const transformDataCallback = (data: SavedModules) => {
+    const savedModules = data.walletsWithModules?.reduce<WalletWithModules[]>((acc, cur) => {
+      if (cur.wallet.id === wallet.id && cur.wallet.index === wallet.index) {
+        return acc;
+      }
+
+      return [...acc, cur];
+    }, []);
+    return {
+      ...data,
+      walletsWithModules: savedModules,
+    };
+  };
+
+  printResults<SavedModules>({
+    data: '{}',
+    fileName,
+    outputPath: OUTPUTS_JSON_FOLDER,
+    transformDataCallback,
+    withAppend: true,
+  });
+};
+
 export const updateSavedModulesCount = ({
   wallet,
   moduleIndex,

@@ -34,6 +34,8 @@ import { DefaultModuleConfigs } from '../../types';
 //
 //   stopWalletOnError: true, - Если поле стоит в true, значит при получении ошибки внутри модуля скрипт остановит
 //                              своё выполнение для этого кошелька и возьмёт следующий кошелёк
+//   stopWalletOnPassed: true, - Если поле стоит в true, значит при выполнении модуля со статусом passed скрипт остановит
+//                              своё выполнение для этого кошелька и возьмёт следующий кошелёк
 //   stopModulesOnError: ['moduleName1', 'moduleName2'] - Если в поле указанны некоторые модули и модуль, для которого оно задано,
 //                                                        падает с ошибкой, то все следующие указанные модули, будут пропущены
 // }
@@ -292,6 +294,9 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     count: [1, 1],
     indexGroup: 0,
 
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
     // Сеть для которой выполнять модуль eth | bsc
     network: 'bsc',
   },
@@ -299,12 +304,18 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     count: [1, 1],
     indexGroup: 1,
 
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
     // Сеть для которой выполнять модуль
     network: 'bsc',
   },
   'polyhedra-transfer-claim': {
     count: [1, 1],
     indexGroup: 2,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
 
     minAndMaxAmount: [100, 100],
     usePercentBalance: true,

@@ -10,7 +10,7 @@ import {
   showLogPreparedModules,
   sleepByRange,
 } from '../../helpers';
-import { clearAllSavedModulesByName } from '../../helpers/modules/save-modules';
+import { clearAllSavedModulesByName, clearSavedWallet } from '../../helpers/modules/save-modules';
 import { LoggerData } from '../../logger';
 import { getGlobalModule } from '../../modules';
 import {
@@ -111,7 +111,7 @@ export abstract class ModuleManager {
 
         if (foundModuleToStop) {
           logger.warning(
-            `Stop producing current module, because of error in ${foundModuleToStop.errorFrom} module and provided stopModulesOnError`,
+            `Stop producing current MODULE, because of error in ${foundModuleToStop.errorFrom} module and provided stopModulesOnError`,
             logTemplate
           );
           continue;
@@ -119,7 +119,7 @@ export abstract class ModuleManager {
       }
       if (module.reverse && module.isReverse && shouldStopReversedModule) {
         shouldStopReversedModule = false;
-        logger.warning('Stop producing current reversed module, because of error on previous one', logTemplate);
+        logger.warning('Stop producing current REVERSED MODULE, because of error on previous one', logTemplate);
         continue;
       }
 
@@ -152,6 +152,16 @@ export abstract class ModuleManager {
       try {
         const { status, message, tgMessage, logTemplate: moduleLogTemplate } = await currentModuleRunner(moduleParams);
         const messageToTg = tgMessage || message;
+
+        if (status === 'passed' && module.stopWalletOnPassed) {
+          logger.success('Stop producing current PASSED WALLET, because stopWalletOnPassed is true', {
+            ...logTemplate,
+          });
+
+          clearSavedWallet(this.wallet, this.projectName);
+
+          break;
+        }
 
         // TODO: check it more, we should clear all wallet if stopWalletOnError is true ?
         if (status === 'passed' && isModuleWithReverse) {
@@ -210,7 +220,7 @@ export abstract class ModuleManager {
           }
 
           if (status === 'critical') {
-            logger.error(`${messageWithModuleTemplate}, stop producing current wallet`, {
+            logger.error(`${messageWithModuleTemplate}, stop producing current WALLET`, {
               ...logTemplate,
               status: 'failed',
             });
@@ -266,7 +276,7 @@ export abstract class ModuleManager {
 
           // modulesResult.push(getTgMessageByStatus('success', moduleName));
 
-          logger.success(`${errorMessage}, stop producing current wallet`, {
+          logger.success(`${errorMessage}, stop producing current WALLET`, {
             ...logTemplate,
             status: 'succeeded',
           });
@@ -277,7 +287,7 @@ export abstract class ModuleManager {
           break;
         }
 
-        logger.error(`${errorMessage}, stop producing current ${moduleName} module`, {
+        logger.error(`${errorMessage}, stop producing current ${moduleName} MODULE`, {
           ...logTemplate,
           status: 'failed',
         });

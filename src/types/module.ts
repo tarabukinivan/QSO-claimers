@@ -49,6 +49,7 @@ export interface ExtraModuleParams {
   maxGas?: MaxGas;
   useInvitesAutosave?: boolean;
   stopWalletOnError?: boolean;
+  stopWalletOnPassed?: boolean;
   stopModulesOnError?: ModuleNames[];
 
   destinationNetwork?: SupportedNetworks;
