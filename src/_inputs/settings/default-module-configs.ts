@@ -300,7 +300,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     indexGroup: 1,
 
     // Сеть для которой выполнять модуль
-    network: 'eth',
+    network: 'bsc',
   },
   'polyhedra-transfer-claim': {
     count: [1, 1],
@@ -310,6 +310,6 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     usePercentBalance: true,
 
     // Сеть для которой выполнять модуль
-    network: 'eth',
+    network: 'bsc',
   },
 };

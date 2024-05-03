@@ -13,10 +13,11 @@ import {
   transactionWorker,
 } from '../../../../helpers';
 import { TransformedModuleParams } from '../../../../types';
+import { PROJECT_CONTRACTS } from '../../constants';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
 import { CLAIM_ABI, CONTRACT_MAP } from './constants';
-import { getBalance, getProofData, getTransactionData } from './helpers';
+import { getBalance, getProofData, getTransactionData, getTransactionsData } from './helpers';
 
 export const execMakeClaimPolyhedra = async (params: TransformedModuleParams) =>
   transactionWorker({
@@ -78,14 +79,15 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
         message: `Unsupported network ${network}`,
       };
     }
-    const { int } = await client.getNativeBalance();
-    nativeBalance = +int.toFixed(6);
 
     const headers = getHeaders();
     const config = await getAxiosConfig({
       proxyAgent,
       headers,
     });
+
+    const { int } = await client.getNativeBalance();
+    nativeBalance = +int.toFixed(6);
 
     const proofData = await getProofData({
       network,
@@ -110,14 +112,102 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
       decimals: 18,
     });
 
+    currentBalance = await getBalance(client);
+
+    const txsData = await getTransactionsData({
+      config,
+      walletAddress,
+      network,
+      chainId: client.chainData.id,
+    });
+
+    const claimTxData = txsData?.find(
+      ({
+        method,
+        to,
+        input,
+        to_address,
+      }: {
+        method: null | string;
+        to: { hash: string };
+        input: string;
+        to_address: string;
+      }) => {
+        const toContractLc = contract.toLowerCase();
+
+        return network === 'bsc'
+          ? input.startsWith('0x2e7ba6ef') && to_address.toLowerCase() === toContractLc
+          : method === 'claim' && to.hash.toLowerCase() === toContractLc;
+      }
+    );
+
+    // TODO: Move to separate helper
+    if (claimTxData) {
+      const claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used || claimTxData.receipt_gas_used);
+
+      if (currentBalance >= amountInt) {
+        await dbRepo.update(walletInDb.id, {
+          status: CLAIM_STATUSES.CLAIMED_NOT_SENT,
+          claimAmount: amountInt,
+          nativeBalance,
+          balance: currentBalance,
+          gasSpent: +claimGasSpent.toFixed(6),
+        });
+
+        return {
+          status: 'success',
+          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_NOT_SENT),
+        };
+      }
+
+      const transferredTxData = txsData?.find(
+        ({
+          method,
+          to,
+          input,
+          to_address,
+        }: {
+          method: null | string;
+          to: { hash: string };
+          input: string;
+          to_address: string;
+        }) => {
+          const toContractLc = PROJECT_CONTRACTS.zkAddress?.toLowerCase();
+          return network === 'bsc'
+            ? input.startsWith('0xa9059cbb') && to_address.toLowerCase() === toContractLc
+            : method === 'transfer' && to.hash.toLowerCase() === toContractLc;
+        }
+      );
+
+      if (currentBalance < amountInt) {
+        const transferred = amountInt - currentBalance;
+
+        const transferGasSpent = transferredTxData
+          ? getSpentGas(transferredTxData.gas_price, transferredTxData.gas_used)
+          : 0;
+
+        await dbRepo.update(walletInDb.id, {
+          status: CLAIM_STATUSES.CLAIMED_AND_SENT,
+          claimAmount: amountInt,
+          balance: currentBalance,
+          gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
+          nativeBalance,
+          transferred,
+        });
+
+        return {
+          status: 'success',
+          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+        };
+      }
+    }
+
     const feeOptions = await getGasOptions({
       gweiRange,
       gasLimitRange,
       network,
       publicClient,
     });
-
-    currentBalance = await getBalance(client);
 
     const txHash = await walletClient.writeContract({
       address: contract,

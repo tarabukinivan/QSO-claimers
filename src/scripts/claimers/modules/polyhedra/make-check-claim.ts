@@ -174,21 +174,8 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
         }
       );
 
-      const claimTxParams = claimTxData?.decoded_input.parameters;
       if (currentBalance < amountInt) {
-        const amountInt = decimalToInt({
-          amount: BigInt(+claimTxParams[2].value),
-          decimals: DECIMALS,
-        });
-
-        const transferredParams = transferredTxData?.decoded_input.parameters;
-        const transferred = transferredParams
-          ? decimalToInt({
-              amount: BigInt(+transferredParams[1].value),
-              decimals: DECIMALS,
-            })
-          : 0;
-        const transferredTo = transferredParams ? transferredParams[0].value : 'Unknown';
+        const transferred = amountInt - currentBalance;
 
         const transferGasSpent = transferredTxData
           ? getSpentGas(transferredTxData.gas_price, transferredTxData.gas_used)
@@ -201,7 +188,6 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
           gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
           nativeBalance,
           transferred,
-          transferredTo,
         });
 
         return {
