@@ -2,7 +2,14 @@ import { Hex } from 'viem';
 
 import { MORALIS_KEY } from '../../../../_inputs/settings';
 import { defaultTokenAbi } from '../../../../clients/abi';
-import { DB_NOT_CONNECTED, SECOND_ADDRESS_EMPTY_ERROR, CLAIM_STATUSES, EMPTY_MORALIS_KEY } from '../../../../constants';
+import {
+  DB_NOT_CONNECTED,
+  SECOND_ADDRESS_EMPTY_ERROR,
+  CLAIM_STATUSES,
+  EMPTY_MORALIS_KEY,
+  ZERO_TRANSFER_AMOUNT,
+  CLAIM_TX_NOT_FOUND,
+} from '../../../../constants';
 import {
   calculateAmount,
   getAxiosConfig,
@@ -150,17 +157,11 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     );
 
     if (!claimTxData) {
-      return {
-        status: 'warning',
-        message: 'Claim was not found',
-      };
+      throw new Error(CLAIM_TX_NOT_FOUND);
     }
 
     if (amountToTransfer === 0) {
-      return {
-        status: 'warning',
-        message: 'Amount is zero',
-      };
+      throw new Error(ZERO_TRANSFER_AMOUNT);
     }
 
     claimGasSpent = getSpentGas(claimTxData.gas_price, claimTxData.gas_used);
@@ -207,13 +208,21 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       message: getCheckClaimMessage(CLAIM_STATUSES.TRANSFER_SUCCESS),
     };
   } catch (err) {
+    const errMessage = formatErrMessage(err);
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.TRANSFER_ERROR,
       balance: currentBalance,
       nativeBalance,
       gasSpent: +claimGasSpent.toFixed(6),
-      error: formatErrMessage(err),
+      error: errMessage,
     });
+
+    if (errMessage === CLAIM_TX_NOT_FOUND || errMessage === ZERO_TRANSFER_AMOUNT) {
+      return {
+        status: 'warning',
+        message: errMessage,
+      };
+    }
 
     throw err;
   }

@@ -30,10 +30,10 @@ export const ANTICAPTCHA_LOW_BALANCE_ERROR = 'Account has zero or negative balan
 export const ANTICAPTCHA_LOW_BALANCE_CUSTOM_ERROR = 'Anticaptcha account has low balance';
 export const UNABLE_GET_WITHDRAW_FEE_ERROR = 'Unable to get fee for current withdraw parameters';
 export const NOTHING_TO_CLAIM_ERROR = 'Nothing to claim';
-
+export const CLAIM_TX_NOT_FOUND = 'Claim transaction was not found';
 export const DB_NOT_CONNECTED = 'DB not connected';
 export const EMPTY_MORALIS_KEY = 'Please provide MORALIS_KEY in global.js';
-
+export const ZERO_TRANSFER_AMOUNT = 'Amount to transfer is zero';
 export const IS_CLAIMED_ERROR = 'Already claimed';
 export const NFT_HOLDING_ERROR = 'Only hold NFT to sign in';
 export const NFT_HOLDING_CUSTOM_ERROR = 'You need to hold NFT to make it';
