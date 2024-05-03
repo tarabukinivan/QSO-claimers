@@ -32,7 +32,7 @@ export const UNABLE_GET_WITHDRAW_FEE_ERROR = 'Unable to get fee for current with
 export const NOTHING_TO_CLAIM_ERROR = 'Nothing to claim';
 
 export const DB_NOT_CONNECTED = 'DB not connected';
-export const EMPTY_MORALIS_KEY = 'Please provide MORALIS_KEY in globsl.js';
+export const EMPTY_MORALIS_KEY = 'Please provide MORALIS_KEY in global.js';
 
 export const IS_CLAIMED_ERROR = 'Already claimed';
 export const NFT_HOLDING_ERROR = 'Only hold NFT to sign in';
