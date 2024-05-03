@@ -2,7 +2,6 @@ import axios, { AxiosError } from 'axios';
 import Moralis from 'moralis';
 import { Hex } from 'viem';
 
-import { MORALIS_KEY } from '../../../../_inputs/settings';
 import { defaultTokenAbi } from '../../../../clients/abi';
 import { BLOCKSCOUT_ETH_API_URL } from '../../../../constants/urls';
 import { ClientType, sleep } from '../../../../helpers';
@@ -34,11 +33,6 @@ export const getTransactionsData = async ({ config, network, walletAddress, chai
     }
 
     if (network === 'bsc') {
-      // TODO: create MORALIS manager
-      await Moralis.start({
-        apiKey: MORALIS_KEY,
-      });
-
       const txs = [];
 
       let cursor;
@@ -94,10 +88,6 @@ export const getTransactionData = async ({ config, txHash, network, chainId }: G
     }
 
     if (network === 'bsc') {
-      await Moralis.start({
-        apiKey: MORALIS_KEY,
-      });
-
       const response = await Moralis.EvmApi.transaction.getTransaction({
         chain: chainId,
         transactionHash: txHash,

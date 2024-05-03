@@ -1,7 +1,6 @@
 import { fromHex } from 'viem';
 
-import { MORALIS_KEY } from '../../../../_inputs/settings';
-import { CLAIM_STATUSES, DB_NOT_CONNECTED, EMPTY_MORALIS_KEY } from '../../../../constants';
+import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
 import {
   decimalToInt,
   getAxiosConfig,
@@ -34,13 +33,6 @@ const makeCheckClaimPolyhedra = async (params: TransactionCallbackParams): Trans
     return {
       status: 'critical',
       message: DB_NOT_CONNECTED,
-    };
-  }
-
-  if (!MORALIS_KEY) {
-    return {
-      status: 'critical',
-      message: EMPTY_MORALIS_KEY,
     };
   }
 

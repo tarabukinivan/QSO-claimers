@@ -12,6 +12,7 @@ import {
   savePreparedModules,
   updateSavedModulesFinishStatus,
 } from '../modules/save-modules';
+import { initMoralis } from '../moralis';
 import { initLocalLogger, showLogSelectedModules } from '../show-logs';
 import { sleep } from '../utils';
 import { prepareSavedWalletsWithModules, prepareWalletsData, prepareWalletsWithModules } from '../wallets';
@@ -42,6 +43,10 @@ export const runMainScript = async (props: MainScriptArgs) => {
     projectName,
     client: clientToPrepareWallets,
   });
+
+  const logger = initLocalLogger(logsFolderName, 'main');
+  logger.setLoggerMeta({ moduleName: 'Main' });
+  await initMoralis(logger);
 
   const { threads } = settings;
 
@@ -150,9 +155,6 @@ export const runMainScript = async (props: MainScriptArgs) => {
   }
 
   const delayBetweenRestarts = settings.delay.betweenRestarts;
-
-  const logger = initLocalLogger(logsFolderName, 'main');
-  logger.setLoggerMeta({ moduleName: 'Main' });
 
   if (delayBetweenRestarts > 0) {
     const secondsFromHours = dayjs.duration(delayBetweenRestarts, 'hour').asSeconds();

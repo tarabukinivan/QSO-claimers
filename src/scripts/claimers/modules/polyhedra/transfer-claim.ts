@@ -1,12 +1,10 @@
 import { Hex } from 'viem';
 
-import { MORALIS_KEY } from '../../../../_inputs/settings';
 import { defaultTokenAbi } from '../../../../clients/abi';
 import {
   DB_NOT_CONNECTED,
   SECOND_ADDRESS_EMPTY_ERROR,
   CLAIM_STATUSES,
-  EMPTY_MORALIS_KEY,
   ZERO_TRANSFER_AMOUNT,
   CLAIM_TX_NOT_FOUND,
 } from '../../../../constants';
@@ -59,13 +57,6 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
     return {
       status: 'critical',
       message: DB_NOT_CONNECTED,
-    };
-  }
-
-  if (!MORALIS_KEY) {
-    return {
-      status: 'critical',
-      message: EMPTY_MORALIS_KEY,
     };
   }
 

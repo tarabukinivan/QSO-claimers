@@ -108,7 +108,7 @@ export class DefaultClient {
   }
 
   async getNativeBalance(): Promise<Balance> {
-    const weiBalance = await this.publicClient.getBalance({ address: this.walletAddress });
+    const weiBalance = (await this.publicClient.getBalance({ address: this.walletAddress })) || 0n;
     const intBalance = Number(formatEther(weiBalance));
     const decimals = this.chainData.nativeCurrency.decimals;
 
