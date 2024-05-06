@@ -6,8 +6,9 @@ import { getSpentGas, sleep } from '../../helpers';
 import { LoggerType } from '../../logger';
 import { GetTx, GetTxData, GetTxs, MoralisTx } from './types';
 
+const apiKeyIdEmptyErr = 'apiKeyId should not be empty';
 export class Moralis {
-  async init(logger: LoggerType) {
+  async init(logger?: LoggerType) {
     try {
       if (!MORALIS_KEY) {
         throw new Error('Please provide MORALIS_KEY in global.js');
@@ -27,7 +28,7 @@ export class Moralis {
         errMsg = invalidMoralisKeyMgs;
       }
 
-      logger.error(errMsg);
+      logger?.error(errMsg);
 
       if (errMsg.includes('Modules are started already. This method should be called only one time.')) {
         return;
@@ -37,7 +38,8 @@ export class Moralis {
     }
   }
 
-  async getTxs({ chainId, walletAddress }: GetTxs): Promise<MoralisTx[]> {
+  async getTxs(params: GetTxs): Promise<MoralisTx[]> {
+    const { chainId, walletAddress } = params;
     try {
       const txs = [];
 
@@ -68,6 +70,12 @@ export class Moralis {
       return txs as MoralisTx[];
     } catch (err) {
       let errMessage = (err as Error).message;
+
+      if (errMessage.includes(apiKeyIdEmptyErr)) {
+        this.init();
+        await this.getTxs(params);
+      }
+
       if (err instanceof AxiosError) {
         errMessage = err.response?.data.message || errMessage;
       }
@@ -77,7 +85,9 @@ export class Moralis {
     }
   }
 
-  async getTx({ chainId, txHash }: GetTx): Promise<MoralisTx | undefined> {
+  async getTx(params: GetTx): Promise<MoralisTx | undefined> {
+    const { chainId, txHash } = params;
+
     try {
       const response = await MoralisLib.EvmApi.transaction.getTransaction({
         chain: chainId,
@@ -90,9 +100,16 @@ export class Moralis {
       return result as MoralisTx;
     } catch (err) {
       let errMessage = (err as Error).message;
+
+      if (errMessage.includes(apiKeyIdEmptyErr)) {
+        this.init();
+        await this.getTx(params);
+      }
+
       if (err instanceof AxiosError) {
         errMessage = err.response?.data.message || errMessage;
       }
+
       if (errMessage.includes('Not found')) return;
 
       throw err;

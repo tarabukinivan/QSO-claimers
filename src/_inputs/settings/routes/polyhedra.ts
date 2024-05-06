@@ -11,43 +11,25 @@ const countModules = [0, 0] as NumberRange;
 const groupSettings: GroupSettings = {};
 
 const modules: UserModuleConfig[] = [
-  {
-    moduleName: 'polyhedra-check-claim',
-    network: 'bsc',
-    indexGroup: 0,
-  },
   // {
-  //   moduleName: 'polyhedra-claim',
-  //   gweiRange: [1.01, 1.04],
-  //
+  //   moduleName: 'polyhedra-check-claim',
   //   network: 'bsc',
-  //
-  //   stopWalletOnError: true,
-  //
-  //   indexGroup: 1,
+  //   indexGroup: 0,
   // },
-  // {
-  //   moduleName: 'polyhedra-transfer-claim',
-  //
-  //   stopWalletOnError: true,
-  //
-  //   indexGroup: 2,
-  // },
-  // {
-  //   moduleName: 'transfer-token',
-  //   count: [1, 1],
-  //   indexGroup: 3,
-  //
-  //   // Диапазон для трансфера
-  //   minAndMaxAmount: [100, 100],
-  //   usePercentBalance: true,
-  //
-  //   // Сеть в которой будет выполняться модуль (bsc | opBNB | eth | optimism | zkSync | arbitrum | polygon | zora | base )
-  //   network: 'eth',
-  //
-  //   // Контракт токена для трансфера или используйте 'native' для трансфера нативного токена указанной сети
-  //   contractAddress: 'native',
-  // },
+  {
+    moduleName: 'polyhedra-claim',
+    gweiRange: [1.01, 1.04],
+
+    network: 'bsc',
+    stopWalletOnError: true,
+    indexGroup: 1,
+  },
+  {
+    moduleName: 'polyhedra-transfer-claim',
+    stopWalletOnError: true,
+    indexGroup: 2,
+    network: 'bsc',
+  },
 ];
 
 // Выполнит скрипт на указанном количестве кошельков

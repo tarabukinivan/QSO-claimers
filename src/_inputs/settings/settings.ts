@@ -2,7 +2,7 @@ import { Settings } from '../../types';
 
 const settings: Settings = {
   // Список маршрутов, которые запустятся один за другим
-  routes: ['base'], // 'base'
+  routes: ['polyhedra'], // 'base'
 
   shuffle: {
     wallets: true, // Кошельки будут выполняться в рандом порядке? true - да, false - нет
@@ -11,7 +11,7 @@ const settings: Settings = {
 
   // Количество потоков или сколько кошельков будут одновременно выполнять транзакци
   // Либо количество кошельков
-  threads: 100,
+  threads: 1,
   // Количество попыток, после которых кошелёк перестанет выполнять модуль и перейдёт к следующему модулю/кошельку
   txAttempts: 3,
 
@@ -19,8 +19,8 @@ const settings: Settings = {
     // Данную задержку можно перебить другой задержкой, если указать её внутри модуля
     beforeTxReceipt: [15, 15], // Задержка перед получением статуса транзакции
     betweenTransactions: [1, 3], // Задержка между транзакциями
-    betweenModules: [5, 10], // Задержка между модулями
-    betweenWallets: [10, 15], // Задержка между кошельками
+    betweenModules: [10, 15], // Задержка между модулями
+    betweenWallets: [10, 40], // Задержка между кошельками
     betweenCheckGas: [60, 120], // Задержка между ожиданием газа
     betweenRetries: 30, // Задержка между неудачными транзакциями
     betweenRestarts: 0, // Задержка (в часах) между повторным запуском скрипта (укажите 0, чтоб не запускать повторно)
@@ -39,7 +39,7 @@ const settings: Settings = {
   idFilter: [],
 
   filters: {
-    useFilter: true,
+    useFilter: false,
 
     // Статус клейма из claim чекер файла
     // Оставьте null чтобы отключить
@@ -61,7 +61,7 @@ const settings: Settings = {
   // Для отключения передайте 0
   // Не работает для модулей, которым передан параметр maxGas в настройках модуля
   maxGas: {
-    eth: 100,
+    eth: 0,
     scroll: 0,
     arbitrum: 0,
     optimism: 0,
@@ -132,10 +132,10 @@ const settings: Settings = {
       withdrawSleep: [170, 190],
     },
     BSC: {
-      useAutoGas: false,
+      useAutoGas: true,
       cex: 'binance', // binance | okx
 
-      minBalance: 0.0003,
+      minBalance: 0.00033,
       withdrawToAmount: [0.004, 0.0047],
       expectedBalance: [0, 0],
       withdrawSleep: [30, 40],
@@ -144,8 +144,8 @@ const settings: Settings = {
       useAutoGas: false,
       cex: 'binance', // binance | okx
 
-      minBalance: 0.0003,
-      withdrawToAmount: [0.01, 0.013],
+      minBalance: 0.0005,
+      withdrawToAmount: [0.01, 0.012],
       expectedBalance: [0, 0],
       withdrawSleep: [30, 40],
     },
