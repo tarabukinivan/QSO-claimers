@@ -152,6 +152,7 @@ export type TransformedModuleParams = Omit<ModuleParams, 'count'> & {
 export type TransformedModuleConfig = Omit<ModuleConfig, 'count'> & {
   count: number;
   isReverse?: boolean;
+  isFailed?: boolean;
 };
 
 export interface StopModuleOnError {

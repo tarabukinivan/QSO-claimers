@@ -76,13 +76,29 @@ export const prepareWalletsWithModules = async (params: PrepareWallets) => {
   }));
 };
 
-export const prepareSavedWalletsWithModules = (savedModules: SavedModules) =>
-  savedModules.walletsWithModules?.reduce<WalletWithModules[]>((acc, cur) => {
-    const currentModules = cur.modules.filter((module) => module.count > 0);
+export const prepareSavedWalletsWithModules = (savedModules: SavedModules) => {
+  const filteredWallets =
+    savedModules.walletsWithModules?.reduce<WalletWithModules[]>((acc, cur) => {
+      const currentModules = cur.modules.filter((module) => module.count > 0);
 
-    if (currentModules.length) {
-      return [...acc, { ...cur, modules: currentModules }];
+      if (currentModules.length) {
+        return [...acc, { ...cur, modules: currentModules }];
+      }
+
+      return acc;
+    }, []) || [];
+
+  const failedWallets = [];
+  const notFinishedWallets = [];
+
+  for (const savedWallet of filteredWallets) {
+    const isEachModuleFailed = savedWallet.modules.every(({ isFailed }) => isFailed);
+
+    if (isEachModuleFailed) {
+      failedWallets.push(savedWallet);
+    } else {
+      notFinishedWallets.push(savedWallet);
     }
-
-    return acc;
-  }, []);
+  }
+  return [...notFinishedWallets, ...failedWallets];
+};

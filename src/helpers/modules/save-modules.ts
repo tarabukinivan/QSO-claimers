@@ -98,6 +98,44 @@ export const updateSavedModulesCount = ({
   });
 };
 
+export const markSavedModulesAsError = ({ wallet, moduleIndex, projectName }: UpdateSavedModulesCount) => {
+  const transformDataCallback = (data: SavedModules) => {
+    const savedModules = data.walletsWithModules?.reduce<WalletWithModules[]>((acc, cur) => {
+      if (cur.wallet.id === wallet.id && cur.wallet.index === wallet.index) {
+        const updatedModules = cur.modules.map(({ ...restModule }, index) => {
+          return {
+            ...restModule,
+            ...(moduleIndex === index && {
+              isFailed: true,
+            }),
+          };
+        });
+
+        const updatedWalletWithModules = {
+          ...cur,
+          modules: updatedModules,
+        } as WalletWithModules;
+
+        return [...acc, updatedWalletWithModules];
+      }
+
+      return [...acc, cur];
+    }, []);
+    return {
+      ...data,
+      walletsWithModules: savedModules,
+    };
+  };
+
+  printResults<SavedModules>({
+    data: '{}',
+    fileName: getFileNameWithPrefix(projectName, 'saved-modules.json'),
+    outputPath: OUTPUTS_JSON_FOLDER,
+    transformDataCallback,
+    withAppend: true,
+  });
+};
+
 interface ClearAllSavedModulesByName {
   wallet: WalletData;
   projectName: string;

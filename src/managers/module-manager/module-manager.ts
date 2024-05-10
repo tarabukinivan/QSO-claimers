@@ -10,7 +10,11 @@ import {
   showLogPreparedModules,
   sleepByRange,
 } from '../../helpers';
-import { clearAllSavedModulesByName, clearSavedWallet } from '../../helpers/modules/save-modules';
+import {
+  clearAllSavedModulesByName,
+  clearSavedWallet,
+  markSavedModulesAsError,
+} from '../../helpers/modules/save-modules';
 import { LoggerData } from '../../logger';
 import { getGlobalModule } from '../../modules';
 import {
@@ -100,7 +104,14 @@ export abstract class ModuleManager {
 
     let shouldStopReversedModule = false;
     const modulesToStopOnErrors: StopModuleOnError[] = [];
+
     for (let moduleIndex = 0; moduleIndex < preparedModules.length; moduleIndex++) {
+      const markAsErrorData = {
+        wallet: this.wallet,
+        projectName: this.projectName,
+        moduleIndex,
+      };
+
       const module = preparedModules[moduleIndex] as TransformedModuleConfig;
 
       const { moduleName } = module;
@@ -196,6 +207,7 @@ export abstract class ModuleManager {
 
           if (status === 'error') {
             modulesResult.push(getTgMessageByStatus('error', moduleName, messageToTg));
+
             throw new Error(messageWithModuleTemplate);
           }
 
@@ -212,6 +224,8 @@ export abstract class ModuleManager {
               ...logTemplate,
               status: 'failed',
             });
+
+            markSavedModulesAsError(markAsErrorData);
 
             if (module.stopWalletOnError) {
               // Stop all modules and stop wallet
@@ -232,6 +246,8 @@ export abstract class ModuleManager {
               type: 'criticalErrors',
             });
             modulesResult.push(getTgMessageByStatus('error', moduleName, messageToTg));
+
+            markSavedModulesAsError(markAsErrorData);
 
             // Stop all modules and stop wallet
             break;
@@ -262,6 +278,8 @@ export abstract class ModuleManager {
             status: 'failed',
           });
 
+          markSavedModulesAsError(markAsErrorData);
+
           // Stop all modules and stop wallet
           break;
         }
@@ -291,6 +309,8 @@ export abstract class ModuleManager {
           ...logTemplate,
           status: 'failed',
         });
+
+        markSavedModulesAsError(markAsErrorData);
 
         const shouldNotSaveFailedWallet = NOT_SAVE_FAILED_WALLET_ERRORS.find((error) => errorMessage.includes(error));
         if (!module.stopWalletOnError && shouldNotSaveFailedWallet) {
