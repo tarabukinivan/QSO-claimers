@@ -137,7 +137,30 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       throw new Error(CLAIM_TX_NOT_FOUND);
     }
 
-    if (amountToTransfer === 0) {
+    const transferredTxData = moralis.getTxData({
+      txs: txsData,
+      method: '0xa9059cbb',
+      to: PROJECT_CONTRACTS.zkAddress as Hex,
+    });
+
+    const isEmptyAmount = amountToTransfer === 0;
+    if (transferredTxData && isEmptyAmount) {
+      const transferGasSpent = moralis.getSpentGas(transferredTxData);
+
+      await dbRepo.update(walletInDb.id, {
+        status: CLAIM_STATUSES.TRANSFER_SUCCESS,
+        balance: currentBalance - amountToTransfer,
+        gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
+        nativeBalance,
+      });
+
+      return {
+        status: 'success',
+        message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+      };
+    }
+
+    if (!transferredTxData && isEmptyAmount) {
       throw new Error(ZERO_TRANSFER_AMOUNT);
     }
 

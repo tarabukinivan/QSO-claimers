@@ -41,6 +41,8 @@ export const WITHDRAW_ERROR = 'Unable to make withdraw successfully';
 export const NO_CURRENCY_ERROR = 'User does not own this currency';
 export const NO_TOKEN_ERROR = 'You do not have enough of this token in your balance';
 export const SOMETHING_WENT_WRONG = 'Something went wrong';
+export const NOT_ENOUGH_FUNDS_FOR_FEE_ERROR =
+  'There are not enough funds to pay the network fee, top up your native balance';
 
 export const MAX_TXS_COUNT_IS_DONE_MESSAGE = 'already equals or more than provided maxTxsCount';
 export const SUCCESS_MESSAGES_TO_STOP_WALLET = [MAX_TXS_COUNT_IS_DONE_MESSAGE];
@@ -63,6 +65,7 @@ export const CRITICAL_ERRORS_MAP = {
   [AMOUNT_IS_TOO_LOW_ERROR]: AMOUNT_IS_TOO_LOW_ERROR,
   [WITHDRAW_ERROR]: WITHDRAW_ERROR,
   [NO_CURRENCY_ERROR]: NO_CURRENCY_ERROR,
+  [NOT_ENOUGH_FUNDS_FOR_FEE_ERROR]: NOT_ENOUGH_FUNDS_FOR_FEE_ERROR,
 };
 
 export const WARNING_ERRORS_MAP = {

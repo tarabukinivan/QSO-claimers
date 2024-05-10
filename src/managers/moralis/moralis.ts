@@ -39,50 +39,61 @@ export class Moralis {
   }
 
   async getTxs(params: GetTxs): Promise<MoralisTx[]> {
-    const { chainId, walletAddress } = params;
-    try {
-      const txs = [];
+    let cursor;
+    let shouldStop = false;
+    const allTxs = [];
 
-      let cursor;
-      let shouldStop = false;
-      while (!shouldStop) {
-        const response = await MoralisLib.EvmApi.transaction.getWalletTransactions({
-          address: walletAddress,
-          chain: chainId,
-          cursor,
-        });
+    while (!shouldStop) {
+      try {
+        const { currentCursor, txs } = await this.getTxsPage(params, cursor);
 
-        const result = response.toJSON();
+        allTxs.push(...txs);
+        cursor = currentCursor;
+      } catch (err) {
+        let errMessage = (err as Error).message;
 
-        for (const tx of result.result) {
-          txs.push(tx);
+        if (errMessage.includes(apiKeyIdEmptyErr)) {
+          await sleep(20);
+
+          continue;
         }
 
-        cursor = response.pagination.cursor;
-
-        if (!cursor) {
-          shouldStop = true;
-        } else {
-          await sleep(30);
+        if (err instanceof AxiosError) {
+          errMessage = err.response?.data.message || errMessage;
         }
+        if (errMessage.includes('Not found')) return [];
+
+        throw err;
       }
 
-      return txs as MoralisTx[];
-    } catch (err) {
-      let errMessage = (err as Error).message;
-
-      if (errMessage.includes(apiKeyIdEmptyErr)) {
-        this.init();
-        await this.getTxs(params);
+      if (!cursor) {
+        shouldStop = true;
+      } else {
+        await sleep(20);
       }
-
-      if (err instanceof AxiosError) {
-        errMessage = err.response?.data.message || errMessage;
-      }
-      if (errMessage.includes('Not found')) return [];
-
-      throw err;
     }
+
+    return allTxs as MoralisTx[];
+  }
+  async getTxsPage(params: GetTxs, cursor?: string) {
+    const { chainId, walletAddress } = params;
+
+    const response = await MoralisLib.EvmApi.transaction.getWalletTransactions({
+      address: walletAddress,
+      chain: chainId,
+      cursor,
+      limit: 300,
+    });
+
+    const result = response.toJSON();
+
+    const txs = result.result;
+    const currentCursor = response.pagination.cursor;
+
+    return {
+      currentCursor,
+      txs,
+    };
   }
 
   async getTx(params: GetTx): Promise<MoralisTx | undefined> {
@@ -102,8 +113,7 @@ export class Moralis {
       let errMessage = (err as Error).message;
 
       if (errMessage.includes(apiKeyIdEmptyErr)) {
-        this.init();
-        await this.getTx(params);
+        return this.getTx(params);
       }
 
       if (err instanceof AxiosError) {

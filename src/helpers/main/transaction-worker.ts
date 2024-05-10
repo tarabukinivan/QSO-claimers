@@ -5,6 +5,7 @@ import settings from '../../_inputs/settings/settings';
 import {
   CRITICAL_ERRORS_MAP,
   NFT_HOLDING_ERROR,
+  NOT_ENOUGH_FUNDS_FOR_FEE_ERROR,
   PASSED_ERROR_MAP,
   SUCCESS_MESSAGES_TO_STOP_WALLET,
   WARNING_ERRORS_MAP,
@@ -205,7 +206,11 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
         }
 
         if (e instanceof TransactionExecutionError) {
-          errorMessage = `Unable to execute transaction. ${e.shortMessage}`;
+          if (errorMessage.includes('gas required exceeds allowance')) {
+            errorMessage = NOT_ENOUGH_FUNDS_FOR_FEE_ERROR;
+          } else {
+            errorMessage = `Unable to execute transaction. ${e.shortMessage}`;
+          }
         }
 
         if (errorMessage.includes('Details: {')) {
@@ -225,10 +230,6 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
 
         if (errorMessage.includes('execution reverted') && !isNftHoldingError) {
           errorMessage = 'Unable to execute transaction for unknown reason';
-        }
-
-        if (errorMessage.includes('gas required exceeds allowance')) {
-          errorMessage = 'There are not enough funds to pay the network fee, top up your native balance';
         }
 
         if (successMessage) {
