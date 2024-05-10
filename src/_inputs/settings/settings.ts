@@ -43,9 +43,13 @@ const settings: Settings = {
 
     // Статус клейма из claim чекер файла
     // Оставьте null чтобы отключить
-    // 'Check error' | 'Not eligible' | 'Claimed but not sent' | 'Claimed and sent' | 'Not claimed yet' | 'Claim error' | 'Successfully claimed' | 'Transfer error' | 'Successfully transferred'
+    // 'Already claimed' | 'Check error' | 'Not eligible' | 'Claimed but not sent' | 'Claimed and sent' | 'Not claimed yet' | 'Claim error' | 'Successfully claimed' | 'Transfer error' | 'Successfully transferred'
     status: 'Not claimed yet',
   },
+
+  // Если значение true, первым делом при восстановлении будет выполняться кошельки, на которых есть модули, которые еще не выполнялись
+  // После чего выполняться те кошельки, где все невыполненные модули являются зафейленными
+  useRestartFromNotFinished: true,
 
   // Запускать ли рестарт автоматически в конце основного скрипта, если остались зафейленые модули
   useRestartInMain: false,

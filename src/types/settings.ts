@@ -59,6 +59,7 @@ export interface DefaultSettings {
 
   txAttemptsToChangeProxy: number;
   useProxy: boolean;
+  useRestartFromNotFinished: boolean;
   useDetailedChecks: boolean;
   useRestartInMain: boolean;
   useSavedModules: boolean;

@@ -88,17 +88,21 @@ export const prepareSavedWalletsWithModules = (savedModules: SavedModules) => {
       return acc;
     }, []) || [];
 
-  const failedWallets = [];
-  const notFinishedWallets = [];
+  if (settings.useRestartFromNotFinished) {
+    const failedWallets = [];
+    const notFinishedWallets = [];
 
-  for (const savedWallet of filteredWallets) {
-    const isEachModuleFailed = savedWallet.modules.every(({ isFailed }) => isFailed);
+    for (const savedWallet of filteredWallets) {
+      const isEachModuleFailed = savedWallet.modules.every(({ isFailed }) => isFailed);
 
-    if (isEachModuleFailed) {
-      failedWallets.push(savedWallet);
-    } else {
-      notFinishedWallets.push(savedWallet);
+      if (isEachModuleFailed) {
+        failedWallets.push(savedWallet);
+      } else {
+        notFinishedWallets.push(savedWallet);
+      }
     }
+    return [...notFinishedWallets, ...failedWallets];
   }
-  return [...notFinishedWallets, ...failedWallets];
+
+  return filteredWallets;
 };
