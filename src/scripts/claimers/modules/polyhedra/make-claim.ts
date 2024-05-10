@@ -166,6 +166,27 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
           };
         }
       }
+    } else {
+      const res = await publicClient.readContract({
+        address: contract,
+        abi: CLAIM_ABI,
+        functionName: 'isClaimed',
+        args: [proofData.index],
+      });
+
+      if (res) {
+        await dbRepo.update(walletInDb.id, {
+          status: CLAIM_STATUSES.ALREADY_CLAIMED,
+          claimAmount: amountInt,
+          nativeBalance,
+          balance: currentBalance,
+        });
+
+        return {
+          status: 'success',
+          message: getCheckClaimMessage(CLAIM_STATUSES.ALREADY_CLAIMED),
+        };
+      }
     }
 
     const feeOptions = await getGasOptions({
