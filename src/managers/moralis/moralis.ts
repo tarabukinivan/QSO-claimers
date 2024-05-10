@@ -82,7 +82,7 @@ export class Moralis {
       address: walletAddress,
       chain: chainId,
       cursor,
-      limit: 300,
+      limit: 100,
     });
 
     const result = response.toJSON();
