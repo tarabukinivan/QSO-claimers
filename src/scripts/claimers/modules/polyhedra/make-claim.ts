@@ -1,5 +1,6 @@
 import { fromHex, Hex } from 'viem';
 
+import settings from '../../../../_inputs/settings/settings';
 import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
 import {
   decimalToInt,
@@ -29,6 +30,7 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
   const { client, dbSource, gweiRange, gasLimitRange, wallet, network, proxyAgent } = params;
 
   const moralis = new Moralis();
+  const useMoralis = settings.useDetailedChecks;
 
   const { walletAddress, walletClient, publicClient, explorerLink } = client;
 
@@ -108,59 +110,61 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
 
     currentBalance = await getBalance(client);
 
-    const txsData = await moralis.getTxs({
-      walletAddress,
-      chainId: client.chainData.id,
-    });
-
-    const claimTxData = moralis.getTxData({
-      txs: txsData,
-      method: '0x2e7ba6ef',
-      to: contract,
-    });
-
-    if (claimTxData) {
-      const claimGasSpent = moralis.getSpentGas(claimTxData);
-
-      if (currentBalance >= amountInt) {
-        await dbRepo.update(walletInDb.id, {
-          status: CLAIM_STATUSES.CLAIMED_NOT_SENT,
-          claimAmount: amountInt,
-          nativeBalance,
-          balance: currentBalance,
-          gasSpent: +claimGasSpent.toFixed(6),
-        });
-
-        return {
-          status: 'success',
-          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_NOT_SENT),
-        };
-      }
-
-      const transferredTxData = moralis.getTxData({
-        txs: txsData,
-        method: '0xa9059cbb',
-        to: PROJECT_CONTRACTS.zkAddress as Hex,
+    if (useMoralis) {
+      const txsData = await moralis.getTxs({
+        walletAddress,
+        chainId: client.chainData.id,
       });
 
-      if (currentBalance < amountInt) {
-        const transferred = amountInt - currentBalance;
+      const claimTxData = moralis.getTxData({
+        txs: txsData,
+        method: '0x2e7ba6ef',
+        to: contract,
+      });
 
-        const transferGasSpent = moralis.getSpentGas(transferredTxData);
+      if (claimTxData) {
+        const claimGasSpent = moralis.getSpentGas(claimTxData);
 
-        await dbRepo.update(walletInDb.id, {
-          status: CLAIM_STATUSES.CLAIMED_AND_SENT,
-          claimAmount: amountInt,
-          balance: currentBalance,
-          gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
-          nativeBalance,
-          transferred,
+        if (currentBalance >= amountInt) {
+          await dbRepo.update(walletInDb.id, {
+            status: CLAIM_STATUSES.CLAIMED_NOT_SENT,
+            claimAmount: amountInt,
+            nativeBalance,
+            balance: currentBalance,
+            gasSpent: +claimGasSpent.toFixed(6),
+          });
+
+          return {
+            status: 'success',
+            message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_NOT_SENT),
+          };
+        }
+
+        const transferredTxData = moralis.getTxData({
+          txs: txsData,
+          method: '0xa9059cbb',
+          to: PROJECT_CONTRACTS.zkAddress as Hex,
         });
 
-        return {
-          status: 'success',
-          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
-        };
+        if (currentBalance < amountInt) {
+          const transferred = amountInt - currentBalance;
+
+          const transferGasSpent = moralis.getSpentGas(transferredTxData);
+
+          await dbRepo.update(walletInDb.id, {
+            status: CLAIM_STATUSES.CLAIMED_AND_SENT,
+            claimAmount: amountInt,
+            balance: currentBalance,
+            gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
+            nativeBalance,
+            transferred,
+          });
+
+          return {
+            status: 'success',
+            message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+          };
+        }
       }
     }
 
@@ -181,12 +185,16 @@ const makeClaimPolyhedra = async (params: TransactionCallbackParams): Transactio
 
     await client.waitTxReceipt(txHash);
 
-    const claimData = await moralis.getTx({
-      txHash,
-      chainId: client.chainData.id,
-    });
+    let claimGasSpent = 0;
 
-    const claimGasSpent = moralis.getSpentGas(claimData);
+    if (useMoralis) {
+      const claimData = await moralis.getTx({
+        txHash,
+        chainId: client.chainData.id,
+      });
+
+      claimGasSpent = moralis.getSpentGas(claimData);
+    }
 
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.CLAIM_SUCCESS,

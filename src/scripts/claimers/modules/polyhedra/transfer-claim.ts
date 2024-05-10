@@ -1,5 +1,6 @@
 import { Hex } from 'viem';
 
+import settings from '../../../../_inputs/settings/settings';
 import { defaultTokenAbi } from '../../../../clients/abi';
 import {
   DB_NOT_CONNECTED,
@@ -50,6 +51,7 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
   const { walletClient, walletAddress, publicClient, explorerLink } = client;
 
   const moralis = new Moralis();
+  const useMoralis = settings.useDetailedChecks;
 
   let nativeBalance = 0;
   let claimGasSpent = 0;
@@ -122,49 +124,52 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       usePercentBalance,
     });
 
-    const txsData = await moralis.getTxs({
-      walletAddress,
-      chainId: client.chainData.id,
-    });
-
-    const claimTxData = moralis.getTxData({
-      txs: txsData,
-      method: '0x2e7ba6ef',
-      to: contract,
-    });
-
-    if (!claimTxData) {
-      throw new Error(CLAIM_TX_NOT_FOUND);
-    }
-
-    const transferredTxData = moralis.getTxData({
-      txs: txsData,
-      method: '0xa9059cbb',
-      to: PROJECT_CONTRACTS.zkAddress as Hex,
-    });
-
     const isEmptyAmount = amountToTransfer === 0;
-    if (transferredTxData && isEmptyAmount) {
-      const transferGasSpent = moralis.getSpentGas(transferredTxData);
 
-      await dbRepo.update(walletInDb.id, {
-        status: CLAIM_STATUSES.TRANSFER_SUCCESS,
-        balance: currentBalance - amountToTransfer,
-        gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
-        nativeBalance,
+    if (useMoralis) {
+      const txsData = await moralis.getTxs({
+        walletAddress,
+        chainId: client.chainData.id,
       });
 
-      return {
-        status: 'success',
-        message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
-      };
+      const claimTxData = moralis.getTxData({
+        txs: txsData,
+        method: '0x2e7ba6ef',
+        to: contract,
+      });
+
+      if (!claimTxData) {
+        throw new Error(CLAIM_TX_NOT_FOUND);
+      }
+
+      const transferredTxData = moralis.getTxData({
+        txs: txsData,
+        method: '0xa9059cbb',
+        to: PROJECT_CONTRACTS.zkAddress as Hex,
+      });
+
+      if (transferredTxData && isEmptyAmount) {
+        const transferGasSpent = moralis.getSpentGas(transferredTxData);
+
+        await dbRepo.update(walletInDb.id, {
+          status: CLAIM_STATUSES.TRANSFER_SUCCESS,
+          balance: currentBalance - amountToTransfer,
+          gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
+          nativeBalance,
+        });
+
+        return {
+          status: 'success',
+          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+        };
+      }
+
+      claimGasSpent = moralis.getSpentGas(claimTxData);
     }
 
-    if (!transferredTxData && isEmptyAmount) {
+    if (isEmptyAmount) {
       throw new Error(ZERO_TRANSFER_AMOUNT);
     }
-
-    claimGasSpent = moralis.getSpentGas(claimTxData);
 
     logger.info(`Sending ${amountToTransfer} ZK to ${secondAddress}...`);
 
@@ -184,12 +189,15 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
 
     await client.waitTxReceipt(txHash);
 
-    const transferData = await moralis.getTx({
-      txHash,
-      chainId: client.chainData.id,
-    });
+    let transferGasSpent = 0;
+    if (useMoralis) {
+      const transferData = await moralis.getTx({
+        txHash,
+        chainId: client.chainData.id,
+      });
 
-    const transferGasSpent = moralis.getSpentGas(transferData);
+      transferGasSpent = moralis.getSpentGas(transferData);
+    }
 
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.TRANSFER_SUCCESS,
