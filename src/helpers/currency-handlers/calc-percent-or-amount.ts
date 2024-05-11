@@ -2,7 +2,7 @@ import { AMOUNT_IS_TOO_LOW_ERROR } from '../../constants';
 import { LoggerType } from '../../logger';
 import { BinanceNetworks, NumberRange, OkxNetworks, SupportedNetworks, TokenContract, WalletData } from '../../types';
 import { ClientType, getClientByNetwork } from '../clients';
-import { addNumberPercentage, getRandomItemFromArray, getRandomNumber } from '../utils';
+import { addNumberPercentage, getRandomNumber } from '../utils';
 import { CryptoCompareResult } from './coin-price';
 import { decimalToInt, intToDecimal } from './wei-converter';
 
@@ -124,7 +124,7 @@ export const getTopUpOptions = async (props: GetTopUpOptions): Promise<GetTopUpO
     withMinAmountError = true,
   } = props;
 
-  let amount = amountProp || getRandomItemFromArray(minAndMaxAmount);
+  let amount = amountProp || getRandomNumber(minAndMaxAmount);
   let minTokenBalance = minTokenBalanceProp;
   let currentExpectedBalance = currentExpectedBalanceProp;
   let currentMinAmount = minAmount;
