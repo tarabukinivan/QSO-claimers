@@ -32,14 +32,6 @@ export const execMakeTransferClaimLayerZero = async (params: TransformedModulePa
 const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
   const { client, dbSource, minAndMaxAmount, usePercentBalance, wallet, gweiRange, gasLimitRange, network, logger } =
     params;
-
-  const k = 1;
-  if (k === 1) {
-    return {
-      status: 'error',
-      message: 'TEST ERROR',
-    };
-  }
   const { walletClient, walletAddress, publicClient, explorerLink } = client;
 
   let nativeBalance = 0;
