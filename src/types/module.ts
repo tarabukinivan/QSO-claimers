@@ -28,7 +28,9 @@ export type ModuleNames =
   | 'orbiter-bridge'
   | 'polyhedra-claim'
   | 'polyhedra-check-claim'
-  | 'polyhedra-transfer-claim';
+  | 'polyhedra-transfer-claim'
+  | 'layerZero-claim'
+  | 'layerZero-transfer-claim';
 
 export type SwapModuleNames = Extract<
   ModuleNames,

@@ -45,7 +45,7 @@ export interface FilterSettings {
 export type MinTokenBalanceSettings = Partial<Record<AvailableSwapTokens, number>>;
 
 export interface DefaultSettings {
-  routes?: Route[];
+  // routes?: Route[];
 
   filters: FilterSettings;
   shuffle: ShuffleSettings;
@@ -85,6 +85,7 @@ export type Route =
   | 'new-accounts'
   | 'polyhedra'
   | 'alt-layer'
+  | 'layer-zero'
   | 'check-balances';
 
 export type Settings = DefaultSettings;

@@ -4,19 +4,23 @@ import { spawn } from 'child_process';
 import inquirer from 'inquirer';
 
 import { SECRET_PHRASE } from '../_inputs/settings/global.js';
+import savedLayerZeroModules from '../_outputs/json/layer-zero-saved-modules.json' assert { type: 'json' };
 import savedPolyhedraModules from '../_outputs/json/polyhedra-saved-modules.json' assert { type: 'json' };
 
 const scripts = {
   polyhedra: 'polyhedra',
+  layerZero: 'layer-zero',
 };
 const aliases = {
   runPolyhedra: '1. Polyhedra',
+  runLayerZero: '2. LayerZero',
 
   exit: '0. Выйти',
 };
 
 const commandAliases = {
   [aliases.runPolyhedra]: scripts.polyhedra,
+  [aliases.runLayerZero]: scripts.layerZero,
 
   [aliases.exit]: 'exit',
 };
@@ -29,6 +33,9 @@ const getStartMainCommand = async (projectName) => {
   switch (projectName) {
     case scripts.polyhedra:
       currentSavedModulesToUse = savedPolyhedraModules;
+      break;
+    case scripts.layerZero:
+      currentSavedModulesToUse = savedLayerZeroModules;
       break;
 
     default:
@@ -43,7 +50,7 @@ const getStartMainCommand = async (projectName) => {
       {
         type: 'list',
         name: 'runMainOrRestartQuestions',
-        message: `Предыдущий скрипт не закончил свое выполнение для ${savedPolyhedraModules.route} роута, продолжить его?`,
+        message: `Предыдущий скрипт не закончил свое выполнение для ${currentSavedModulesToUse.route} роута, продолжить его?`,
         choices: [startLastScriptMessage, 'Нет (выполнить новый скрипт, но база будет очищена)'],
       },
     ];
@@ -106,6 +113,12 @@ const getSecretPhrase = async () => {
   switch (selectedAlias) {
     case aliases.runPolyhedra: {
       const { command, secret, projectName } = await getStartMainCommand(scripts.polyhedra);
+      selectedCommand = command;
+      args = [secret, projectName, projectName];
+      break;
+    }
+    case aliases.runLayerZero: {
+      const { command, secret, projectName } = await getStartMainCommand(scripts.layerZero);
       selectedCommand = command;
       args = [secret, projectName, projectName];
       break;

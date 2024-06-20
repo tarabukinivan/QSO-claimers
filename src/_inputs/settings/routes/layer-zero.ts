@@ -11,38 +11,15 @@ const countModules = [0, 0] as NumberRange;
 const groupSettings: GroupSettings = {};
 
 const modules: UserModuleConfig[] = [
-  {
-    moduleName: 'polyhedra-check-claim',
-    network: 'bsc',
-    indexGroup: 0,
-    stopWalletOnError: false,
-  },
-  {
-    moduleName: 'polyhedra-check-claim',
-    network: 'bsc',
-    indexGroup: 1,
-    stopWalletOnError: false,
-  },
-  {
-    moduleName: 'polyhedra-check-claim',
-    network: 'bsc',
-    indexGroup: 2,
-    stopWalletOnError: false,
-  },
   // {
-  //   moduleName: 'polyhedra-claim',
-  //   gweiRange: [1.01, 1.04],
-  //
-  //   network: 'bsc',
-  //   stopWalletOnError: true,
-  //   indexGroup: 1,
+  //   moduleName: 'layerZero-claim',
+  //   network: 'arbitrum',
   // },
-  // {
-  //   moduleName: 'polyhedra-transfer-claim',
-  //   stopWalletOnError: true,
-  //   indexGroup: 2,
-  //   network: 'bsc',
-  // },
+  {
+    moduleName: 'layerZero-transfer-claim',
+    minAndMaxAmount: [100, 100],
+    network: 'arbitrum',
+  },
 ];
 
 // Выполнит скрипт на указанном количестве кошельков

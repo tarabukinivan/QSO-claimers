@@ -43,6 +43,66 @@ import { DefaultModuleConfigs } from '../../types';
 // Конфиг, который будет применяться для каждого модуля по умолчанию в случае, если вы пропусили какие-то параметры в роуте
 
 export const defaultModuleConfigs: DefaultModuleConfigs = {
+  // ============== LayerZero ==============
+  'layerZero-claim': {
+    count: [1, 1],
+    indexGroup: 1,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    // Сеть для которой выполнять модуль
+    network: 'arbitrum',
+
+    tokenToSupply: 'ETH',
+  },
+  'layerZero-transfer-claim': {
+    count: [1, 1],
+    indexGroup: 2,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    minAndMaxAmount: [100, 100],
+    usePercentBalance: true,
+
+    // Сеть для которой выполнять модуль
+    network: 'arbitrum',
+  },
+  // ============== Polyhedra ==============
+  'polyhedra-check-claim': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    // Сеть для которой выполнять модуль eth | bsc
+    network: 'bsc',
+  },
+  'polyhedra-claim': {
+    count: [1, 1],
+    indexGroup: 1,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    // Сеть для которой выполнять модуль
+    network: 'bsc',
+  },
+  'polyhedra-transfer-claim': {
+    count: [1, 1],
+    indexGroup: 2,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    minAndMaxAmount: [100, 100],
+    usePercentBalance: true,
+
+    // Сеть для которой выполнять модуль
+    network: 'bsc',
+  },
   // ============== General ==============
   'balance-checker': {
     count: [1, 1],
@@ -288,39 +348,5 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     usePercentBalance: true,
     minAndMaxAmount: [70, 80],
     reverse: false,
-  },
-  // ============== Polyhedra ==============
-  'polyhedra-check-claim': {
-    count: [1, 1],
-    indexGroup: 0,
-
-    stopWalletOnError: true,
-    stopWalletOnPassed: true,
-
-    // Сеть для которой выполнять модуль eth | bsc
-    network: 'bsc',
-  },
-  'polyhedra-claim': {
-    count: [1, 1],
-    indexGroup: 1,
-
-    stopWalletOnError: true,
-    stopWalletOnPassed: true,
-
-    // Сеть для которой выполнять модуль
-    network: 'bsc',
-  },
-  'polyhedra-transfer-claim': {
-    count: [1, 1],
-    indexGroup: 2,
-
-    stopWalletOnError: true,
-    stopWalletOnPassed: true,
-
-    minAndMaxAmount: [100, 100],
-    usePercentBalance: true,
-
-    // Сеть для которой выполнять модуль
-    network: 'bsc',
   },
 };

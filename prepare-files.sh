@@ -64,3 +64,33 @@ if [ ! -s src/_outputs/csv/checkers/polyhedra-claim.csv ]
     echo "\nCreating polyhedra-claim.csv in src/_outputs/csv/checkers/"
     touch src/_outputs/csv/checkers/polyhedra-claim.csv && echo "id,walletAddress" >> src/_outputs/csv/checkers/polyhedra-claim.csv
 fi
+
+#LAYER_ZERO ===============================================================================================================
+if [ ! -s src/_inputs/csv/layer-zero-wallets.csv ]
+  then :
+    echo "\nCreating layer-zero-wallets.csv in src/_inputs/csv/"
+    touch src/_inputs/csv/layer-zero-wallets.csv && echo "id,walletAddress,privKey,okxAddress,secondAddress,proxy_type,proxy" >> src/_inputs/csv/layer-zero-wallets.csv
+fi
+if [ ! -s src/_outputs/json/layer-zero-wallets.json ]
+  then :
+    echo "\nCreating layer-zero-wallets.json in src/_outputs/json/"
+    touch src/_outputs/json/layer-zero-wallets.json && echo "[]" >> src/_outputs/json/layer-zero-wallets.json
+fi
+
+if [ ! -s src/_outputs/csv/layer-zero-failed-wallets.csv ]
+  then :
+    echo "\nCreating layer-zero-failed-wallets.csv in src/_outputs/csv/"
+    touch src/_outputs/csv/layer-zero-failed-wallets.csv && echo "id,walletAddress,privKey,failReason" >> src/_outputs/csv/layer-zero-failed-wallets.csv
+fi
+
+if [ ! -s src/_outputs/json/layer-zero-saved-modules.json ]
+  then :
+    echo "\nCreating layer-zero-saved-modules.json in src/_outputs/json/"
+    touch src/_outputs/json/layer-zero-saved-modules.json && echo "[]" >> src/_outputs/json/layer-zero-saved-modules.json
+fi
+
+if [ ! -s src/_outputs/csv/checkers/layer-zero-claim.csv ]
+  then :
+    echo "\nCreating layer-zero-claim.csv in src/_outputs/csv/checkers/"
+    touch src/_outputs/csv/checkers/layer-zero-claim.csv && echo "id,walletAddress" >> src/_outputs/csv/checkers/layer-zero-claim.csv
+fi

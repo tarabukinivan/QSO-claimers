@@ -1,9 +1,6 @@
 import { Settings } from '../../types';
 
 const settings: Settings = {
-  // Список маршрутов, которые запустятся один за другим
-  routes: ['polyhedra'], // 'base'
-
   shuffle: {
     wallets: true, // Кошельки будут выполняться в рандом порядке? true - да, false - нет
     modules: true, // Модули будут выполняться в рандом порядке? true - да, false - нет
@@ -61,6 +58,7 @@ const settings: Settings = {
   useProxy: false,
 
   // Использовать ли более детальные проверки транзакций при выполнении модулей
+  // Необходим Moralis
   useDetailedChecks: false,
 
   // Модули, будут дожидаться выполнения,

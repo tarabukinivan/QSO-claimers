@@ -1,6 +1,12 @@
 import { IModuleManager, ModuleManager as DefaultModuleManager } from '../../../../managers/module-manager';
 import { ModuleNames } from '../../../../types';
-import { execMakeCheckClaimPolyhedra, execMakeClaimPolyhedra, execMakeTransferClaimPolyhedra } from '../../modules';
+import {
+  execMakeCheckClaimPolyhedra,
+  execMakeClaimLayerZero,
+  execMakeClaimPolyhedra,
+  execMakeTransferClaimLayerZero,
+  execMakeTransferClaimPolyhedra,
+} from '../../modules';
 
 export class ModuleManager extends DefaultModuleManager {
   constructor(args: IModuleManager) {
@@ -15,6 +21,11 @@ export class ModuleManager extends DefaultModuleManager {
         return execMakeCheckClaimPolyhedra;
       case 'polyhedra-transfer-claim':
         return execMakeTransferClaimPolyhedra;
+
+      case 'layerZero-claim':
+        return execMakeClaimLayerZero;
+      case 'layerZero-transfer-claim':
+        return execMakeTransferClaimLayerZero;
 
       default:
         return;
