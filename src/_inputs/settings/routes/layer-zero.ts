@@ -11,10 +11,10 @@ const countModules = [0, 0] as NumberRange;
 const groupSettings: GroupSettings = {};
 
 const modules: UserModuleConfig[] = [
-  // {
-  //   moduleName: 'layerZero-claim',
-  //   network: 'arbitrum',
-  // },
+  {
+    moduleName: 'layerZero-claim',
+    network: 'arbitrum',
+  },
   {
     moduleName: 'layerZero-transfer-claim',
     minAndMaxAmount: [100, 100],
