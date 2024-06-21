@@ -50,11 +50,11 @@ npm run prepare-files
 ```
 
 10. Заполняем файлы
-: 10.1. `src/_inputs/settings/global.js`
-: 10.2. `src/_inputs/settings/settings.ts`
-: 10.3. `src/_inputs/settings/routes/[projectName].ts`
-: 10.4. `src/_inputs/csv/[projectName]-wallets.csv` (НЕ УДАЛЯЙТЕ HEADER CSV ФАЙЛА! Это не .txt!)
-: 10.5. `src/_inputs/csv/proxies.csv`
+: 10.1. `src/_inputs/settings/global.js` (OKX/Binance)
+: 10.2. `src/_inputs/settings/settings.ts` (Задержки, потоки)
+: 10.3. `src/_inputs/settings/routes/[projectName].ts` (Флоу софта можете подредачить)
+: 10.4. `src/_inputs/csv/[projectName]-wallets.csv` (НЕ УДАЛЯЙТЕ HEADER CSV ФАЙЛА! Это не .txt! Кошельки сюда)
+: 10.5. `src/_inputs/csv/proxies.csv` (Не обязательно)
 
 11.  npm start
 
