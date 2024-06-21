@@ -3,6 +3,7 @@ import {
   getAxiosConfig,
   getGasOptions,
   getHeaders,
+  getTrimmedLogsAmount,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
@@ -130,9 +131,10 @@ const makeClaimLayerZero = async (params: TransactionCallbackParams): Transactio
     });
 
     if (donationBalanceInt < donationAmountInt) {
-      const errMessage = `Balance [${+donationBalanceInt.toFixed(
-        7
-      )} ${tokenToSupply}] is not enough to pay minimal donation [${+donationAmountInt.toFixed(7)} ${tokenToSupply}]`;
+      const errMessage = `Balance [${getTrimmedLogsAmount(
+        +donationBalanceInt,
+        tokenToSupply
+      )}] is not enough to pay minimal donation [${getTrimmedLogsAmount(+donationAmountInt, tokenToSupply)}]`;
       await dbRepo.update(walletInDb.id, {
         status: CLAIM_STATUSES.CLAIM_ERROR,
         claimAmount: amountInt,
