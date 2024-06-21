@@ -8,7 +8,9 @@ import { GroupSettings, NumberRange, RouteSettings, UserModuleConfig } from '../
 // Укажите [0, 0] если хотите чтобы использовались все модули
 const countModules = [0, 0] as NumberRange;
 
-const groupSettings: GroupSettings = {};
+const groupSettings: GroupSettings = {
+  1: [1, 1],
+};
 
 const modules: UserModuleConfig[] = [
   {
@@ -18,6 +20,19 @@ const modules: UserModuleConfig[] = [
   },
   {
     moduleName: 'okx-withdraw',
+
+    okxWithdrawNetwork: 'arbitrum',
+    tokenToWithdraw: 'ETH',
+
+    // Добавит к значению вывода еще посчитанный минимальный донат для клейма
+    addDonationAmount: true,
+    expectedBalance: [0.0011, 0.0015],
+    minTokenBalance: 0.0011,
+
+    indexGroup: 1,
+  },
+  {
+    moduleName: 'binance-withdraw',
 
     okxWithdrawNetwork: 'arbitrum',
     tokenToWithdraw: 'ETH',
@@ -41,6 +56,18 @@ const modules: UserModuleConfig[] = [
     network: 'arbitrum',
 
     indexGroup: 4,
+  },
+  {
+    moduleName: 'transfer-token',
+    network: 'arbitrum',
+
+    minAndMaxAmount: [98, 99],
+    usePercentBalance: true,
+
+    // Контракт токена для трансфера или используйте 'native' для трансфера нативного токена указанной сети
+    contractAddress: 'native',
+
+    indexGroup: 5,
   },
 ];
 
