@@ -15,7 +15,7 @@ const settings: Settings = {
   delay: {
     // Данную задержку можно перебить другой задержкой, если указать её внутри модуля
     beforeTxReceipt: [15, 15], // Задержка перед получением статуса транзакции
-    betweenTransactions: [1, 3], // Задержка между транзакциями
+    betweenTransactions: [5, 10], // Задержка между транзакциями
     betweenModules: [10, 15], // Задержка между модулями
     betweenWallets: [10, 15], // Задержка между кошельками
     betweenCheckGas: [60, 120], // Задержка между ожиданием газа
@@ -155,7 +155,7 @@ const settings: Settings = {
       withdrawSleep: [170, 190],
     },
     BSC: {
-      useAutoGas: true,
+      useAutoGas: false,
       cex: 'binance', // binance | okx
 
       minBalance: 0.00033,
