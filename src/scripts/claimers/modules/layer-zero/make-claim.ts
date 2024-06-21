@@ -149,7 +149,8 @@ const makeClaimLayerZero = async (params: TransactionCallbackParams): Transactio
       };
     }
 
-    currentBalance = await getBalance(client);
+    const { currentBalance: currentBalanceInt } = await getBalance(client);
+    currentBalance = currentBalanceInt;
 
     const feeOptions = await getGasOptions({
       gweiRange,

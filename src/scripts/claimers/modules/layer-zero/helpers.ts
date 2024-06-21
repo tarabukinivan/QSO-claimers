@@ -44,9 +44,9 @@ export const getBalance = async (client: ClientType) => {
     address: ZRO_CONTRACT,
     abi: defaultTokenAbi,
   };
-  const { int: currentBalance } = await client.getBalanceByContract(contractInfo);
+  const { int: currentBalance, wei: currentBalanceWei } = await client.getBalanceByContract(contractInfo);
 
-  return currentBalance;
+  return { currentBalance, currentBalanceWei };
 };
 
 interface GetDonationData {

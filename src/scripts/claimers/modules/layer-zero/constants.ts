@@ -1,8 +1,8 @@
-import { Hex } from 'viem';
+import { getAddress, Hex } from 'viem';
 
 import { SupportedNetworks } from '../../../../types';
 
-export const ZRO_CONTRACT: Hex = '0x6985884C4392D348587B19cb9eAAf157F13271cd';
+export const ZRO_CONTRACT: Hex = getAddress('0x6985884C4392D348587B19cb9eAAf157F13271cd');
 
 export const ZRO_ABI = [
   {

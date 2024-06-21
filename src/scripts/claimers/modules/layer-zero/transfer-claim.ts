@@ -1,4 +1,4 @@
-import { Hex } from 'viem';
+import { getAddress } from 'viem';
 
 import { defaultTokenAbi } from '../../../../clients/abi';
 import {
@@ -10,8 +10,8 @@ import {
 } from '../../../../constants';
 import {
   calculateAmount,
+  decimalToInt,
   getGasOptions,
-  intToDecimal,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
@@ -109,33 +109,34 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
       publicClient,
     });
 
-    currentBalance = await getBalance(client);
+    const { currentBalance: currentBalanceInt, currentBalanceWei } = await getBalance(client);
+    currentBalance = currentBalanceInt;
 
     const amountToTransfer = calculateAmount({
-      balance: currentBalance,
+      balance: currentBalanceWei,
+      isBigInt: true,
       minAndMaxAmount,
       usePercentBalance,
+      decimals: 18,
     });
 
-    const isEmptyAmount = amountToTransfer === 0;
+    const isEmptyAmount = amountToTransfer === 0n;
 
     if (isEmptyAmount) {
       throw new Error(ZERO_TRANSFER_AMOUNT);
     }
 
-    logger.info(`Sending ${amountToTransfer} $ZRO to ${secondAddress}...`);
+    const amountToTransferInt = decimalToInt({
+      amount: amountToTransfer,
+      decimals: 18,
+    });
+    logger.info(`Sending ${amountToTransferInt} $ZRO to ${secondAddress}...`);
 
     const txHash = await walletClient.writeContract({
       address: ZRO_CONTRACT,
       abi: defaultTokenAbi,
       functionName: 'transfer',
-      args: [
-        secondAddress as Hex,
-        intToDecimal({
-          amount: amountToTransfer,
-          decimals: 18,
-        }),
-      ],
+      args: [getAddress(secondAddress), amountToTransfer],
       ...feeOptions,
     });
 
@@ -143,9 +144,9 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
 
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.TRANSFER_SUCCESS,
-      balance: currentBalance - amountToTransfer,
+      balance: currentBalance - amountToTransferInt,
       nativeBalance,
-      transferred: amountToTransfer,
+      transferred: amountToTransferInt,
       transferredTo: secondAddress,
     });
 

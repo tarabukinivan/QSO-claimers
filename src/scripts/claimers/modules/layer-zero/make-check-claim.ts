@@ -100,7 +100,8 @@ const makeCheckClaimLayerZero = async (params: TransactionCallbackParams): Trans
       decimals: eligibilityRes.zroAllocation.decimals,
     });
 
-    currentBalance = await getBalance(client);
+    const { currentBalance: currentBalanceInt } = await getBalance(client);
+    currentBalance = currentBalanceInt;
 
     const claimed = (await publicClient.readContract({
       address: zroClaimedContract,
