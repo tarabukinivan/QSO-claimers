@@ -42,6 +42,18 @@ const modules: UserModuleConfig[] = [
 
     indexGroup: 4,
   },
+  {
+    moduleName: 'transfer-token',
+    network: 'arbitrum',
+
+    minAndMaxAmount: [98, 99],
+    usePercentBalance: true,
+
+    // Контракт токена для трансфера или используйте 'native' для трансфера нативного токена указанной сети
+    contractAddress: 'native',
+
+    indexGroup: 5,
+  },
 ];
 
 // Выполнит скрипт на указанном количестве кошельков
