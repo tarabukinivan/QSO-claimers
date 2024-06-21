@@ -7,8 +7,9 @@ import {
   transactionWorker,
   getGasOptions,
   ResponseStatus,
+  showLogMakeSwap,
 } from '../../../helpers';
-import { TransformedModuleParams } from '../../../types';
+import { Tokens, TransformedModuleParams } from '../../../types';
 import { calculateMinAmountOut, getDeadline, getSwapsData, getSwapTgMessage } from '../helpers';
 import { IZUMI_CONTRACTS, IZUMI_PATH_CONNECTOR, IZUMI_QUOTER_ABI, IZUMI_ROUTER_ABI } from './constants';
 
@@ -75,7 +76,12 @@ export const makeIzumiSwap = async ({
     dstToken,
   } = swapsData;
 
-  logger.info(`Swapping [${amountToSwapInt}] from ${srcToken} to ${dstToken}...`);
+  showLogMakeSwap({
+    logger,
+    amount: amountToSwapInt,
+    srcToken: srcToken as Tokens,
+    dstToken: dstToken as Tokens,
+  });
 
   if (!isNativeSrcTokenContract) {
     await client.approve(srcTokenContract, routerContractByNetwork, balanceSrcToken.wei, gweiRange, gasLimitRange);

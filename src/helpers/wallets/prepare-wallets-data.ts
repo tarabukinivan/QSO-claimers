@@ -11,8 +11,8 @@ import { PrepareFromCsvArgs, PrepareRowFromCsvArgs, PrepareWalletsData } from '.
 
 const PRIV_KEY_LENGTH = 70;
 
-export const formatId = (inputString: string): string => {
-  const parts: string[] = inputString.split(NUMBER_ONLY_REGEXP);
+export const formatId = (inputString: string, index: number): string => {
+  const parts: string[] = (inputString || `${index} ID`).split(NUMBER_ONLY_REGEXP);
 
   const isNumberPartCorrect = !isNaN(Number(parts[0]));
   const isPartsSplittedCorrectly = parts.length >= 1 && isNumberPartCorrect;
@@ -28,7 +28,7 @@ export const formatId = (inputString: string): string => {
   return '';
 };
 
-export const prepareRowFromCSV = ({ walletData, logger, client }: PrepareRowFromCsvArgs) => {
+export const prepareRowFromCSV = ({ walletData, logger, client, index }: PrepareRowFromCsvArgs) => {
   // const logTemplate: LoggerData = {
   //   action: 'prepareRowFromCSV',
   //   status: 'in progress',
@@ -52,7 +52,7 @@ export const prepareRowFromCSV = ({ walletData, logger, client }: PrepareRowFrom
   return {
     ...restRow,
     privKey,
-    id: formatId(id),
+    id: formatId(id, index),
     walletAddress,
   };
 };
@@ -61,7 +61,6 @@ export const prepareFromCsv = async ({ logger, projectName, client }: PrepareFro
   const fileName = getFileNameWithPrefix(projectName, 'wallets');
   const logTemplate: LoggerData = {
     action: 'prepareFromCsv',
-    status: 'in progress',
   };
 
   try {
@@ -79,48 +78,43 @@ export const prepareFromCsv = async ({ logger, projectName, client }: PrepareFro
       withSaving: true,
     })) as WalletData[];
 
-    const idOrPrivKeyIsEmpty = data.some(({ id, privKey }) => !id || !privKey);
+    const idOrPrivKeyIsEmpty = data.some(({ privKey }) => !privKey);
 
     if (idOrPrivKeyIsEmpty) {
-      logger.error('Unable to create rows, some ID or PrivKey is empty', {
+      logger.error('Unable to create rows, PrivKey is empty', {
         ...logTemplate,
-        status: 'failed',
       });
 
       return;
     }
 
-    const dataToSave: WalletData[] = data.map((walletData) => prepareRowFromCSV({ client, walletData, logger }));
+    const dataToSave: WalletData[] = data.map((walletData, index) =>
+      prepareRowFromCSV({ client, walletData, logger, index })
+    );
 
     if (dataToSave.length !== data.length) {
       logger.error('Unable to prepare all data correctly', {
         ...logTemplate,
-        status: 'failed',
       });
 
       return;
     }
 
-    const dataToSaveInCsv: WalletData[] = dataToSave.map(
-      ({ id, walletAddress, privKey, okxAddress, secondAddress, proxy_type, proxy }) => {
-        let encryptedPrivKey = privKey;
+    const dataToSaveInCsv: WalletData[] = dataToSave.map(({ id, walletAddress, privKey, ...rest }) => {
+      let encryptedPrivKey = privKey;
 
-        // We need to encrypt privKey to push into csv and json
-        if (privKey.length <= PRIV_KEY_LENGTH) {
-          encryptedPrivKey = encryptKey(privKey);
-        }
-
-        return {
-          id,
-          walletAddress,
-          privKey: encryptedPrivKey,
-          okxAddress,
-          secondAddress,
-          proxy_type,
-          proxy,
-        };
+      // We need to encrypt privKey to push into csv and json
+      if (privKey.length <= PRIV_KEY_LENGTH) {
+        encryptedPrivKey = encryptKey(privKey);
       }
-    );
+
+      return {
+        id,
+        walletAddress,
+        privKey: encryptedPrivKey,
+        ...rest,
+      };
+    });
 
     const dataToSaveInJson = dataToSaveInCsv.map((data, index) => ({
       ...data,
@@ -148,7 +142,6 @@ export const prepareFromCsv = async ({ logger, projectName, client }: PrepareFro
 
     logger.error(`Unable to prepare data from CSV: \n${errorMessage}`, {
       ...logTemplate,
-      status: 'failed',
     });
   }
 
@@ -163,7 +156,6 @@ export const prepareWalletsData = async ({
   logger.setLoggerMeta({ moduleName: 'PrepareWalletsData' });
   const logTemplate: LoggerData = {
     action: 'prepareWalletsData',
-    status: 'in progress',
   };
 
   try {
@@ -174,7 +166,7 @@ export const prepareWalletsData = async ({
       })) || []
     );
   } catch (err) {
-    logger.error('Unable to prepare wallets data', { ...logTemplate, status: 'failed' });
+    logger.error('Unable to prepare wallets data', { ...logTemplate });
   }
   return [];
 };

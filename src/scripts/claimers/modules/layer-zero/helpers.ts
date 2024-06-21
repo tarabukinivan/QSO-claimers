@@ -2,8 +2,8 @@ import axios from 'axios';
 import { Hex } from 'viem';
 
 import { defaultTokenAbi } from '../../../../clients/abi';
-import { ClientType } from '../../../../helpers';
-import { BaseAxiosConfig, SupportedNetworks, TokenContract } from '../../../../types';
+import { ClientType, CryptoCompareResult, decimalToInt, getContractData, intToDecimal } from '../../../../helpers';
+import { BaseAxiosConfig, SupportedNetworks, TokenContract, Tokens } from '../../../../types';
 import { API_URL, ZRO_CONTRACT } from './constants';
 
 interface GetData {
@@ -47,4 +47,59 @@ export const getBalance = async (client: ClientType) => {
   const { int: currentBalance } = await client.getBalanceByContract(contractInfo);
 
   return currentBalance;
+};
+
+interface GetDonationData {
+  client: ClientType;
+  amountInt: number;
+  nativePrices: CryptoCompareResult;
+  network?: SupportedNetworks;
+  tokenToSupply?: Tokens;
+}
+export const getDonationData = async ({
+  client,
+  amountInt,
+  network = 'arbitrum',
+  tokenToSupply = 'ETH',
+  nativePrices,
+}: GetDonationData) => {
+  const tokenPrice = nativePrices[tokenToSupply];
+
+  if (!tokenPrice) {
+    throw new Error(`Unable to get ${tokenToSupply} price`);
+  }
+
+  const donationAmountInt = (amountInt * 0.1) / tokenPrice;
+  const { tokenContractInfo, isNativeToken } = getContractData({
+    nativeToken: client.chainData.nativeCurrency.symbol as Tokens,
+    token: tokenToSupply,
+    network,
+  });
+  const { int: donationBalanceInt, decimals: donationDecimals } = await client.getNativeOrContractBalance(
+    isNativeToken,
+    tokenContractInfo
+  );
+  const donationAmountWei = intToDecimal({
+    amount: donationAmountInt,
+    decimals: donationDecimals,
+  });
+
+  return {
+    donationBalanceInt,
+    donationAmountInt,
+    donationAmountWei,
+  };
+};
+
+export const getAmount = async (eligibilityRes: EligibilityRes) => {
+  const amountWei = BigInt(eligibilityRes.zroAllocation.asBigInt);
+  const amountInt = decimalToInt({
+    amount: amountWei,
+    decimals: eligibilityRes.zroAllocation.decimals,
+  });
+
+  return {
+    amountInt,
+    amountWei,
+  };
 };

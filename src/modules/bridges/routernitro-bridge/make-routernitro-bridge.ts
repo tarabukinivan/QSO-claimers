@@ -13,14 +13,24 @@ import {
   getExpectedBalance,
   getGasOptions,
   getHeaders,
+  getRandomNumber,
+  getTrimmedLogsAmount,
   intToDecimal,
+  showLogMakeBridge,
   shuffleArray,
   sleep,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../helpers';
 import { LoggerData, LoggerType } from '../../../logger';
-import { NumberRange, ProxyAgent, SupportedNetworks, TransformedModuleParams, WalletData } from '../../../types';
+import {
+  NumberRange,
+  ProxyAgent,
+  SupportedNetworks,
+  Tokens,
+  TransformedModuleParams,
+  WalletData,
+} from '../../../types';
 
 export const execMakeRouternitroBridge = async (params: TransformedModuleParams) =>
   transactionWorker({
@@ -51,6 +61,7 @@ interface MakeRouternitroBridge {
   slippage: number;
   useUsd?: boolean;
   maxFee?: number;
+  balanceToLeft?: NumberRange;
   nativePrices: CryptoCompareResult;
 }
 export const makeRouternitroBridge = async (params: MakeRouternitroBridge): TransactionCallbackReturn => {
@@ -75,6 +86,7 @@ export const makeRouternitroBridge = async (params: MakeRouternitroBridge): Tran
     nativePrices,
     preparedAmount,
     maxFee: maxFeeProp,
+    balanceToLeft,
   } = params;
   const { currentExpectedBalance: currentExpectedBalancePicked, isTopUpByExpectedBalance } =
     getExpectedBalance(expectedBalance);
@@ -97,7 +109,6 @@ export const makeRouternitroBridge = async (params: MakeRouternitroBridge): Tran
 
   const logTemplate: LoggerData = {
     action: 'execRouternitroBridge',
-    status: 'in progress',
   };
   const destinationClient = getClientByNetwork(destinationNetwork, wallet.privKey, logger);
 
@@ -148,9 +159,6 @@ export const makeRouternitroBridge = async (params: MakeRouternitroBridge): Tran
     if (minAmount) {
       minAmount = minAmount / currentTokenPrice;
     }
-    if (maxFee) {
-      maxFee = maxFee / currentTokenPrice;
-    }
 
     currentExpectedBalance = currentExpectedBalance / currentTokenPrice;
 
@@ -164,20 +172,50 @@ export const makeRouternitroBridge = async (params: MakeRouternitroBridge): Tran
   const toChainId = destinationClient.chainData.id;
 
   const balance = await currentClient.getNativeOrContractBalance(isNativeContract, contractInfo);
+
   const destinationBalance = await destinationClient.getNativeOrContractBalance(isNativeContract, contractInfo);
 
   if (minDestTokenBalance && destinationBalance.int >= minDestTokenBalance) {
     return {
       status: 'passed',
-      message: `Balance of ${destinationNetwork}=${destinationBalance.int.toFixed(
-        4
+      message: `Balance in ${destinationNetwork} is ${getTrimmedLogsAmount(
+        destinationBalance.int
       )} already more or equal than ${minDestTokenBalance}`,
     };
   }
 
   let amount;
 
-  if (isTopUpByExpectedBalance && !preparedAmount) {
+  if (balanceToLeft && balanceToLeft[0] && balanceToLeft[1]) {
+    let balanceToLeftInt = getRandomNumber(balanceToLeft);
+
+    if (useUsd) {
+      const fromTokenPrice = nativePrices[fromTokenSymbol];
+
+      if (!fromTokenPrice) {
+        throw new Error(`Unable to get ${fromTokenSymbol} token price`);
+      }
+
+      balanceToLeftInt = balanceToLeftInt / fromTokenPrice;
+    }
+
+    const balanceToLeftWei = intToDecimal({
+      amount: balanceToLeftInt,
+      decimals: balance.decimals,
+    });
+
+    amount = balance.wei - balanceToLeftWei;
+
+    if (balance.int - balanceToLeftInt <= 0) {
+      return {
+        status: 'warning',
+        message: `Balance is ${getTrimmedLogsAmount(
+          balance.int,
+          fromTokenSymbol as Tokens
+        )} that is lower than balance to left ${balanceToLeftInt}`,
+      };
+    }
+  } else if (isTopUpByExpectedBalance && !preparedAmount) {
     const toTokenSymbol = destinationClient.chainData.nativeCurrency.symbol;
 
     if (fromTokenSymbol !== toTokenSymbol) {
@@ -245,14 +283,31 @@ export const makeRouternitroBridge = async (params: MakeRouternitroBridge): Tran
   );
 
   let data = quoteRes.data;
+
   let currentFee = decimalToInt({ amount: data.bridgeFee.amount, decimals: data.bridgeFee.decimals });
   if (maxFee) {
+    const feeSymbol = data.bridgeFee.symbol;
+
+    if (feeSymbol !== fromTokenSymbol) {
+      const feeTokenPrice = nativePrices[feeSymbol];
+      const currentTokenPrice = nativePrices[fromTokenSymbol];
+
+      if (!feeTokenPrice) {
+        throw new Error(`Unable to get ${feeSymbol} token price`);
+      }
+      if (!currentTokenPrice) {
+        throw new Error(`Unable to get ${fromTokenSymbol} token price`);
+      }
+
+      maxFee = useUsd ? maxFee / feeTokenPrice : (maxFee * currentTokenPrice) / feeTokenPrice;
+    }
+
     while (currentFee > maxFee) {
       await sleep(
         90,
         logTemplate,
         logger,
-        `Current fee ${currentFee.toFixed(5)} is more than ${maxFee.toFixed(5)}. Waiting 90s...`
+        `Current fee ${getTrimmedLogsAmount(currentFee)} is more than ${getTrimmedLogsAmount(maxFee)}. Waiting 90s...`
       );
 
       const quoteRes = await axios.get(
@@ -305,16 +360,20 @@ export const makeRouternitroBridge = async (params: MakeRouternitroBridge): Tran
 
   const txn = txData.txn;
 
-  logger.info(
-    `Making bridge of ${amountInt.toFixed(6)} ${fromTokenSymbol} from ${network} to ${destinationNetwork}`,
-    logTemplate
-  );
+  showLogMakeBridge({
+    logger,
+    amount: amountInt,
+    network,
+    destinationNetwork,
+    token: fromTokenSymbol as unknown as Tokens,
+  });
 
   const feeOptions = await getGasOptions({
     gweiRange,
     network,
     publicClient,
   });
+
   const txHash = await walletClient.sendTransaction({
     to: txn.to,
     value: amount,

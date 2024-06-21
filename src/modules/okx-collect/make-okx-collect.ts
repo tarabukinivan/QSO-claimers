@@ -1,7 +1,12 @@
 import { OKX } from '../../_inputs/settings';
-import { TransactionCallbackParams, TransactionCallbackReturn, transactionWorker } from '../../helpers';
+import {
+  getTrimmedLogsAmount,
+  TransactionCallbackParams,
+  TransactionCallbackReturn,
+  transactionWorker,
+} from '../../helpers';
 import { Okx, OkxApiSecrets } from '../../managers/okx';
-import { TransformedModuleParams } from '../../types';
+import { Tokens, TransformedModuleParams } from '../../types';
 
 export const execOkxCollect = async (params: TransformedModuleParams) =>
   transactionWorker({
@@ -14,7 +19,7 @@ interface OkxAccount extends OkxApiSecrets {
   name: string;
 }
 const makeOkxCollect = async (props: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { logger, okxAccounts, okxCollectTokens } = props;
+  const { logger, okxAccounts, collectTokens } = props;
 
   const allOkxAccounts = Object.entries(OKX.accounts).reduce<OkxAccount[]>((acc, [name, settings]) => {
     if (!!settings.secret && !!settings.apiKey && !!settings.password) {
@@ -64,23 +69,25 @@ const makeOkxCollect = async (props: TransactionCallbackParams): TransactionCall
   for (const okxAccount of currentOkxAccounts) {
     const { name, ...secrets } = okxAccount;
 
-    logger.info(`Processing ${name} account...`);
+    logger.info(`Processing [${name}] account...`);
     const okx = new Okx({
       logger,
       secrets,
     });
 
-    await okx.transferFromSubAccs(okxCollectTokens);
-    await okx.transferFromTradingAcc(okxCollectTokens);
+    await okx.transferFromSubAccs(collectTokens);
+    await okx.transferFromTradingAcc(collectTokens);
 
     const balances = await okx.getMainAccountBalances();
 
     if (balances.length) {
-      logger.success(`Balance of ${name}: ${balances.map(({ bal, ccy }: any) => `${ccy}=${(+bal).toFixed(5)}`)}`);
+      logger.success(
+        `Balance of ${name}: ${balances.map(({ bal, ccy }: any) => `${getTrimmedLogsAmount(+bal, ccy as Tokens)}`)}`
+      );
     }
 
     if (okxAccount.name !== OKX.collectAccountName && OKX.collectAccountEmail) {
-      await okx.transferToAnotherAcc(OKX.collectAccountEmail, okxCollectTokens);
+      await okx.transferToAnotherAcc(OKX.collectAccountEmail, collectTokens);
     }
   }
 

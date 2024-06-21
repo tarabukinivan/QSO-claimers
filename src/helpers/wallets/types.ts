@@ -33,6 +33,7 @@ export interface PrepareRowFromCsvArgs {
   walletData: WalletData;
   client: ClientClass;
   logger: LoggerType;
+  index: number;
 }
 
 export interface FilterWallets {

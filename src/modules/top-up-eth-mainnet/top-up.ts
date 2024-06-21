@@ -3,7 +3,9 @@ import {
   getGasOptions,
   getRandomItemFromArray,
   getRandomNumber,
+  getTrimmedLogsAmount,
   intToDecimal,
+  showLogMakeBridge,
   sleep,
   subtractNumberPercentage,
   TransactionCallbackParams,
@@ -11,7 +13,7 @@ import {
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../helpers';
-import { Cex, TransformedModuleParams } from '../../types';
+import { Cex, OptionalNetworksArray, TransformedModuleParams } from '../../types';
 import { makeBinanceWithdraw } from '../binance-withdraw';
 import { makeOkxWithdraw } from '../okx-withdraw';
 
@@ -40,6 +42,7 @@ const makeTopUp = async (params: TransactionCallbackParams): TransactionCallback
     randomCex,
     useUsd,
     nativePrices,
+    expectedBalance,
   } = params;
 
   const amount = getRandomNumber(zkEraBridgeAmount);
@@ -53,7 +56,10 @@ const makeTopUp = async (params: TransactionCallbackParams): TransactionCallback
   if (nativeBalance >= minNativeBalance) {
     return {
       status: 'success',
-      message: `Native balance of ETH=${nativeBalance.toFixed(6)} in eth network already more than ${minNativeBalance}`,
+      message: `Native balance ${getTrimmedLogsAmount(
+        nativeBalance,
+        'ETH'
+      )} in eth network already more than ${minNativeBalance}`,
     };
   }
 
@@ -87,6 +93,13 @@ const makeTopUp = async (params: TransactionCallbackParams): TransactionCallback
       amount: amountToWithdraw,
       minTokenBalance: checkZkEraBalance ? minDestNativeBalance : 0,
       withMinAmountError: false,
+      minAmount: 0,
+      usePercentBalance: false,
+      minDestTokenBalance: 0,
+      randomNetworks: [] as OptionalNetworksArray,
+      minNativeBalance,
+      hideExtraLogs: true,
+      expectedBalance: expectedBalance || [0, 0],
     };
 
     const withdrawNetwork = 'zkSync';
@@ -95,6 +108,7 @@ const makeTopUp = async (params: TransactionCallbackParams): TransactionCallback
     let res: TransactionCallbackResponse | undefined;
     if (cex === 'okx') {
       res = await makeOkxWithdraw({
+        ...params,
         ...baseWithdrawParams,
         okxWithdrawNetwork: withdrawNetwork,
       });
@@ -102,6 +116,7 @@ const makeTopUp = async (params: TransactionCallbackParams): TransactionCallback
 
     if (cex === 'binance') {
       res = await makeBinanceWithdraw({
+        ...params,
         ...baseWithdrawParams,
         binanceWithdrawNetwork: withdrawNetwork,
       });
@@ -126,7 +141,13 @@ const makeTopUp = async (params: TransactionCallbackParams): TransactionCallback
   if (isToppedUp) {
     const value = intToDecimal({ amount: amountToBridge });
 
-    logger.info(`Making bridge of ${amountToBridge.toFixed(6)} ETH`);
+    showLogMakeBridge({
+      logger,
+      amount: amountToBridge,
+      network: 'zkSync',
+      destinationNetwork: 'eth',
+      token: 'ETH',
+    });
 
     const feeOptions = await getGasOptions({
       gweiRange,

@@ -5,6 +5,7 @@ import { CryptoCompareResult, TransactionCallbackResponse } from '../helpers';
 import { LoggerData, LoggerType } from '../logger';
 import { Cex, NumberRange, ProxyAgent, ProxyObject, WalletData } from './common';
 import { BinanceNetworks, OkxNetworks, SupportedNetworks } from './networks';
+import { MinTokenBalanceSettings } from './settings';
 import { AvailableRemainSwapTokens, AvailableSwapTokens, Tokens } from './tokens';
 
 export type WorkerResponse = Pick<TransactionCallbackResponse, 'status' | 'message' | 'tgMessage'> & {
@@ -24,12 +25,16 @@ export type ModuleNames =
   | 'izumi-swap'
   | 'sync-swap'
   | '1inch-swap'
+  | 'odos-swap'
   | 'routernitro-bridge'
   | 'orbiter-bridge'
+  | 'relay-bridge'
+  | 'meson-bridge'
   | 'polyhedra-claim'
   | 'polyhedra-check-claim'
   | 'polyhedra-transfer-claim'
   | 'layerZero-claim'
+  | 'layerZero-check-claim'
   | 'layerZero-transfer-claim';
 
 export type SwapModuleNames = Extract<
@@ -41,27 +46,30 @@ export type MaxGas = [SupportedNetworks, number];
 export type HexOrNative = Hex | 'native';
 export type ContractPairs = [HexOrNative, HexOrNative];
 export type Pairs = [AvailableSwapTokens, AvailableSwapTokens];
+export type NetworksArray = [SupportedNetworks, ...SupportedNetworks[]];
+export type OptionalNetworksArray = SupportedNetworks[];
+export type TokensArray = [Tokens, ...Tokens[]];
 
 export interface ExtraModuleParams {
   // General
   network?: SupportedNetworks;
-  randomNetworks?: SupportedNetworks[];
+  randomNetworks?: OptionalNetworksArray;
   gweiRange?: NumberRange;
   gasLimitRange?: NumberRange;
   maxGas?: MaxGas;
   useInvitesAutosave?: boolean;
   stopWalletOnError?: boolean;
   stopWalletOnPassed?: boolean;
+  skipClearInSaved?: boolean;
   stopModulesOnError?: ModuleNames[];
-
   destinationNetwork?: SupportedNetworks;
-  destinationNetworks?: SupportedNetworks[];
+  destinationNetworks?: NetworksArray;
   contractAddress?: HexOrNative;
   contractAddresses?: Hex[];
   projectAddresses?: Hex[];
 
   useUsd?: boolean;
-
+  checkThisMonthTx?: boolean;
   // Swaps / Liquidity / Lending
   srcToken?: AvailableSwapTokens;
   destTokens?: [AvailableSwapTokens, ...AvailableSwapTokens[]];
@@ -87,21 +95,25 @@ export interface ExtraModuleParams {
   randomOkxWithdrawNetworks?: OkxNetworks[];
   okxWithdrawFees?: number;
   okxAccounts?: string[] | 'all';
-  okxCollectTokens?: Tokens[];
-
+  collectTokens?: Tokens[];
+  randomTokens?: TokensArray;
   withdrawNetwork?: string;
   randomCex?: [Cex, ...Cex[]];
 
   // Amounts
   reverseMinAndMaxAmount?: NumberRange;
   minAndMaxAmount?: NumberRange;
+  splitAmount?: NumberRange;
   minAmount?: number;
   amount?: number;
   usePercentBalance?: boolean;
   minTokenBalance?: number;
+  minBalanceByToken?: MinTokenBalanceSettings;
   minNativeBalance?: number;
+  addDonationAmount?: boolean;
   minDestTokenBalance?: number;
   minDestNativeBalance?: number;
+  balanceToLeft?: NumberRange;
 
   expectedBalance?: NumberRange;
 
@@ -111,11 +123,15 @@ export interface ExtraModuleParams {
   zkEraBridgeAmount?: NumberRange;
   checkZkEraBalance?: boolean;
 
-  balanceToLeft?: NumberRange;
-
   maxTxsCount?: NumberRange;
   maxFee?: number;
   bytecode?: Hex;
+
+  flows?: [NetworksArray, ...NetworksArray[]];
+
+  waitTime?: number;
+  waitBalance?: number;
+  waitLiquidityAttempts?: number;
 }
 
 export interface DefaultModuleConfig extends ExtraModuleParams {

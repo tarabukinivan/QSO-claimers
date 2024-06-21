@@ -71,18 +71,10 @@ export abstract class ModuleManager {
 
     if (settings.useProxy) {
       const walletProxy = this.wallet.proxy;
-      const walletProxyType = this.wallet.proxy_type;
-      const isWalletProxyExist = !!walletProxy && !!walletProxyType;
-      const walletProxyData = isWalletProxyExist
-        ? await getProxyAgent(
-            {
-              proxy: walletProxy,
-              proxy_type: walletProxyType,
-            },
-            logger
-          )
-        : null;
-      const proxyData = walletProxyData || (await createRandomProxyAgent(logger));
+      const updateProxyLink = this.wallet.updateProxyLink;
+      const isWalletProxyExist = !!walletProxy;
+      const walletProxyData = isWalletProxyExist ? await getProxyAgent(walletProxy, updateProxyLink, logger) : null;
+      const proxyData = walletProxyData || (await createRandomProxyAgent(updateProxyLink, logger));
 
       if (!proxyData) {
         logger.error('You do not use proxy! Fill the _inputs/csv/proxies.csv file');

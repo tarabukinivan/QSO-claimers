@@ -1,85 +1,43 @@
-import { defaultTokenAbi } from '../../clients/abi';
-import { EMPTY_BALANCE_ERROR, OKX_WL_ERROR } from '../../constants';
+import { Hex } from 'viem';
+
+import { EMPTY_BALANCE_ERROR, OKX_WL_ERROR, WAIT_TOKENS } from '../../constants';
 import {
   addNumberPercentage,
-  CryptoCompareResult,
   getClientByNetwork,
   getExpectedBalance,
-  getRandomNumber,
-  getTokenContract,
+  getLogMsgWalletToppedUp,
+  getRandomNetwork,
   getTopUpOptions,
   GetTopUpOptionsResult,
   sleep,
   TransactionCallbackParams,
+  TransactionCallbackResponse,
   TransactionCallbackReturn,
   transactionWorker,
+  getContractData,
+  getHeaders,
+  getAxiosConfig,
 } from '../../helpers';
-import { type LoggerData, LoggerType } from '../../logger';
+import { type LoggerData } from '../../logger';
 import { Okx } from '../../managers/okx';
-import { NumberRange, OkxNetworks, Tokens, TransformedModuleParams, WalletData } from '../../types';
-
-export const executeOkxWithdraw = async (params: TransactionCallbackParams) => {
-  const {
-    wallet,
-    okxWithdrawNetwork,
-    tokenToWithdraw,
-    minAndMaxAmount,
-    minTokenBalance,
-    logger,
-    expectedBalance,
-    amount,
-    minAmount,
-    useUsd,
-    randomOkxWithdrawNetworks,
-    nativePrices,
-    withdrawAdditionalPercent,
-  } = params;
-
-  return makeOkxWithdraw({
-    wallet,
-    okxWithdrawNetwork,
-    tokenToWithdraw,
-    minAndMaxAmount,
-    minTokenBalance,
-    logger,
-    expectedBalance,
-    amount,
-    minAmount,
-    useUsd,
-    randomOkxWithdrawNetworks,
-    nativePrices,
-    withdrawAdditionalPercent,
-  });
-};
+import { HEADERS } from '../../scripts/claimers/modules/layer-zero/constants';
+import { getAmount, getDonationData, getEligibilityData } from '../../scripts/claimers/modules/layer-zero/helpers';
+import { OkxNetworks, Tokens, TransformedModuleParams } from '../../types';
 
 interface MakeOkxWithdraw {
-  okxWithdrawNetwork: OkxNetworks;
-  wallet: WalletData;
-  logger: LoggerType;
-  minAndMaxAmount: NumberRange;
-  tokenToWithdraw?: Tokens;
-  nativePrices: CryptoCompareResult;
-  useUsd?: boolean;
-  randomOkxWithdrawNetworks?: OkxNetworks[];
-  amount?: number;
-  percentToAdd?: number;
-  minTokenBalance?: number;
-  fee?: number;
-  minAmount?: number;
-  expectedBalance?: NumberRange;
-  withdrawSleep?: NumberRange;
-  hideExtraLogs?: boolean;
   preparedTopUpOptions?: GetTopUpOptionsResult;
-  withdrawAdditionalPercent?: number;
+  hideExtraLogs?: boolean;
   withMinAmountError?: boolean;
 }
-export const makeOkxWithdraw = async (props: MakeOkxWithdraw): TransactionCallbackReturn => {
+export const makeOkxWithdraw = async (
+  props: TransactionCallbackParams & MakeOkxWithdraw
+): TransactionCallbackReturn => {
   const logTemplate: LoggerData = {
     action: 'execWithdraw',
-    status: 'in progress',
   };
 
   const {
+    addDonationAmount,
     okxWithdrawNetwork: okxWithdrawNetworkProp,
     wallet,
     expectedBalance,
@@ -87,43 +45,95 @@ export const makeOkxWithdraw = async (props: MakeOkxWithdraw): TransactionCallba
     minTokenBalance,
     minAndMaxAmount,
     tokenToWithdraw: tokenToWithdrawProp,
+    randomOkxWithdrawNetworks,
     amount,
     minAmount,
-    withdrawSleep,
+    waitTime,
     hideExtraLogs = false,
     useUsd = false,
     nativePrices,
     preparedTopUpOptions,
     withdrawAdditionalPercent,
     withMinAmountError,
+    proxyAgent,
   } = props;
 
-  const okxWithdrawNetwork = okxWithdrawNetworkProp;
-
-  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(expectedBalance);
-
-  const client = getClientByNetwork(okxWithdrawNetwork, wallet.privKey, logger);
+  let okxWithdrawNetwork = okxWithdrawNetworkProp;
+  let client = getClientByNetwork(okxWithdrawNetwork, wallet.privKey, logger);
   const nativeToken = client.chainData.nativeCurrency.symbol as Tokens;
-  const tokenToWithdraw = tokenToWithdrawProp || nativeToken;
-  const isNativeTokenToWithdraw = tokenToWithdraw === nativeToken;
 
-  let tokenContractInfo;
-  if (!isNativeTokenToWithdraw) {
-    const tokenContract = getTokenContract({
-      tokenName: tokenToWithdraw,
+  let {
+    tokenContractInfo,
+    isNativeToken: isNativeTokenToWithdraw,
+    token: tokenToWithdraw,
+  } = getContractData({
+    nativeToken,
+    network: okxWithdrawNetwork,
+    token: tokenToWithdrawProp,
+  });
+
+  if (randomOkxWithdrawNetworks?.length) {
+    const res = await getRandomNetwork({
+      wallet,
+      randomNetworks: randomOkxWithdrawNetworks,
+      logger,
+      minTokenBalance,
+      useUsd,
+      nativePrices,
+      client,
+      tokenContractInfo,
       network: okxWithdrawNetwork,
+      token: tokenToWithdraw,
+      isNativeToken: isNativeTokenToWithdraw,
     });
 
-    tokenContractInfo = isNativeTokenToWithdraw
-      ? undefined
-      : {
-          name: tokenToWithdraw,
-          address: tokenContract.address,
-          abi: defaultTokenAbi,
-        };
+    if ('status' in res) {
+      return res as TransactionCallbackResponse;
+    }
+
+    client = res.client;
+    okxWithdrawNetwork = res.network as OkxNetworks;
+    tokenContractInfo = res.tokenContractInfo;
+    isNativeTokenToWithdraw = res.isNativeToken;
+    tokenToWithdraw = res.token;
   }
 
   const walletAddress = wallet.walletAddress;
+
+  let additionalAmount = 0;
+  if (addDonationAmount) {
+    const headers = getHeaders(HEADERS);
+    const config = await getAxiosConfig({
+      proxyAgent,
+      headers,
+    });
+
+    const eligibilityRes = await getEligibilityData({
+      network: 'arbitrum',
+      walletAddress: walletAddress as Hex,
+      chainId: 42_161,
+      config,
+    });
+
+    if (eligibilityRes.isEligible) {
+      const { amountInt } = await getAmount(eligibilityRes);
+
+      const { donationAmountInt } = await getDonationData({
+        client,
+        network: 'arbitrum',
+        amountInt,
+        nativePrices,
+      });
+
+      additionalAmount = donationAmountInt;
+    }
+  }
+
+  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(
+    expectedBalance && expectedBalance[0] && expectedBalance[1]
+      ? [expectedBalance[0] + additionalAmount, expectedBalance[1] + additionalAmount]
+      : expectedBalance
+  );
 
   const topUpOptions =
     preparedTopUpOptions ||
@@ -134,12 +144,15 @@ export const makeOkxWithdraw = async (props: MakeOkxWithdraw): TransactionCallba
       nativePrices,
       currentExpectedBalance,
       isTopUpByExpectedBalance,
-      minTokenBalance,
-      minAndMaxAmount,
+      minTokenBalance: minTokenBalance ? minTokenBalance + additionalAmount : minTokenBalance,
+      minAndMaxAmount:
+        minAndMaxAmount && minAndMaxAmount[0] && minAndMaxAmount[1]
+          ? [minAndMaxAmount[0] + additionalAmount, minAndMaxAmount[1] + additionalAmount]
+          : minAndMaxAmount,
       isNativeTokenToWithdraw,
       tokenContractInfo,
       tokenToWithdraw,
-      amount,
+      amount: amount ? amount + additionalAmount : amount,
       network: okxWithdrawNetwork,
       useUsd,
       minAmount,
@@ -174,13 +187,14 @@ export const makeOkxWithdraw = async (props: MakeOkxWithdraw): TransactionCallba
 
       let withdrawIsOk = await okx.checkWithdrawal({ id, publicClient: client.publicClient });
       while (!(currentBalance.int > prevTokenBalance) && withdrawIsOk) {
-        const currentSleep = withdrawSleep ? getRandomNumber(withdrawSleep) : 20;
+        const currentSleep = waitTime || 20;
         await sleep(currentSleep);
+
         currentBalance = await client.getNativeOrContractBalance(isNativeTokenToWithdraw, tokenContractInfo);
         withdrawIsOk = await okx.checkWithdrawal({ id, publicClient: client.publicClient });
 
         if (!hideExtraLogs) {
-          logger.info('Tokens are still on the way to wallet...', logTemplate);
+          logger.info(WAIT_TOKENS, logTemplate);
         }
       }
 
@@ -193,9 +207,11 @@ export const makeOkxWithdraw = async (props: MakeOkxWithdraw): TransactionCallba
 
       return {
         status: 'success',
-        message: `Your wallet was successfully topped up from OKX. Current balance is [${currentBalance.int.toFixed(
-          6
-        )} ${tokenToWithdraw}]`,
+        message: getLogMsgWalletToppedUp({
+          cex: 'OKX',
+          balance: currentBalance.int,
+          token: tokenToWithdraw,
+        }),
       };
     } catch (err) {
       const errorMessage = (err as Error).message;
@@ -224,5 +240,5 @@ export const execOkxWithdraw = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
     startLogMessage: 'Execute make OKX withdraw...',
-    transactionCallback: executeOkxWithdraw,
+    transactionCallback: makeOkxWithdraw,
   });

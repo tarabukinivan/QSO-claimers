@@ -4,20 +4,14 @@ import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 
-import { INPUTS_CSV_FOLDER } from '../../constants';
+import { BASE_TIMEOUT, INPUTS_CSV_FOLDER } from '../../constants';
 import { LoggerType } from '../../logger';
-import {
-  JsonProxyObject,
-  OptionalPreparedProxyData,
-  OptionalProxyObject,
-  PreparedProxyData,
-  ProxyAgent,
-} from '../../types';
+import { OptionalPreparedProxyData, OptionalProxyObject, PreparedProxyData, ProxyAgent } from '../../types';
 import { convertAndWriteToJSON } from '../file-handlers';
 import { getAxiosConfig } from './get-axios-config';
 import { getRandomItemFromArray } from './randomizers';
 
-const MY_IP_API_URL = 'https://api.myip.com';
+export const MY_IP_API_URL = 'https://api.myip.com';
 
 export const createProxyAgent = (proxy = '', logger?: LoggerType): ProxyAgent | null => {
   try {
@@ -52,57 +46,37 @@ export const getRandomProxy = async (logger?: LoggerType) => {
   const proxies = (await convertAndWriteToJSON({
     inputPath,
     logger,
-  })) as JsonProxyObject[];
+  })) as { proxy: string }[];
 
   const randomProxy = getRandomItemFromArray(proxies);
 
   if (randomProxy) {
-    return prepareProxy(randomProxy);
+    return prepareProxy(randomProxy.proxy);
   }
 
   return;
 };
 
-export const prepareProxy = (proxy: JsonProxyObject, logger?: LoggerType): OptionalPreparedProxyData => {
+export const prepareProxy = (proxy: string, logger?: LoggerType): OptionalPreparedProxyData => {
   try {
-    if (!proxy.proxy) {
+    const urlPattern = /^(socks5|http|https):\/\/([^:]+):([^@]+)@([^:]+):(\d+)$/i;
+    const match = proxy.match(urlPattern);
+
+    if (!match) {
+      logger?.error('Invalid proxy URL format');
       return;
     }
 
-    const incorrectProxyFormat = 'You use incorrect proxy format or didnt add proxy type';
+    const [, type, login, pass, ip, port] = match;
 
-    const isIncorrectProxy =
-      !proxy.proxy_type ||
-      proxy.proxy.startsWith('http://') ||
-      proxy.proxy.startsWith('https://') ||
-      proxy.proxy.startsWith('http://');
-    if (isIncorrectProxy) {
-      logger?.error(incorrectProxyFormat);
-      return;
-    }
-
-    const [login, ...rest] = proxy.proxy.split(':');
-    const restProxyData = rest.join(':');
-    if (!login) {
-      logger?.error(incorrectProxyFormat);
-      return;
-    }
-
-    const [pass, ipAndPort] = restProxyData.split('@');
-    if (!pass || !ipAndPort) {
-      logger?.error(incorrectProxyFormat);
-      return;
-    }
-
-    const [ip, port] = ipAndPort.split(':');
-    if (!ip || !port) {
-      logger?.error(incorrectProxyFormat);
+    if (!type || !login || !pass || !ip || !port) {
+      logger?.error('Invalid proxy URL format');
       return;
     }
 
     return {
-      url: `${proxy.proxy_type.toLowerCase()}://${proxy.proxy}`,
-      proxyType: proxy.proxy_type,
+      url: proxy,
+      proxyType: type.toUpperCase(),
       proxyIp: ip,
       proxyPort: port,
       proxyLogin: login,
@@ -117,6 +91,7 @@ export const prepareProxy = (proxy: JsonProxyObject, logger?: LoggerType): Optio
 
 export const prepareProxyAgent = async (
   proxyData: PreparedProxyData,
+  updateProxyLink?: string,
   logger?: LoggerType
 ): Promise<OptionalProxyObject> => {
   const { url, ...restProxyData } = proxyData;
@@ -124,12 +99,38 @@ export const prepareProxyAgent = async (
   const proxyAgent = createProxyAgent(url, logger);
 
   if (proxyAgent) {
+    const config = await getAxiosConfig({
+      proxyAgent,
+    });
+
+    if (updateProxyLink) {
+      try {
+        await axios.get(updateProxyLink, {
+          ...config,
+          headers: {
+            'Content-Type': 'text/html',
+            Accept: 'text/html',
+            Connection: 'Keep-Alive',
+          },
+          timeout: BASE_TIMEOUT,
+        });
+      } catch (err) {
+        const errMsg = (err as Error).message;
+
+        const errPrefix = 'Unable to update proxy ip: ';
+        if (errMsg.includes('socket hang up')) {
+          logger?.error(errPrefix + 'Please try to remove port from updateProxyLink domain');
+        } else if (errMsg.includes('self-signed certificate')) {
+          logger?.error(errPrefix + 'Please try to change protocol from https to http');
+        } else {
+          logger?.error(errPrefix + errMsg);
+        }
+      }
+    }
+
     // show current IP address
     if (logger) {
       try {
-        const config = await getAxiosConfig({
-          proxyAgent,
-        });
         const response = await axios.get(MY_IP_API_URL, config);
 
         const data = response?.data;
@@ -154,21 +155,28 @@ export const prepareProxyAgent = async (
   return null;
 };
 
-export const getProxyAgent = async (proxy: JsonProxyObject, logger?: LoggerType): Promise<OptionalProxyObject> => {
+export const getProxyAgent = async (
+  proxy: string,
+  updateProxyLink?: string,
+  logger?: LoggerType
+): Promise<OptionalProxyObject> => {
   const preparedProxyData = prepareProxy(proxy, logger);
 
   if (preparedProxyData) {
-    return prepareProxyAgent(preparedProxyData, logger);
+    return prepareProxyAgent(preparedProxyData, updateProxyLink, logger);
   }
 
   return null;
 };
 
-export const createRandomProxyAgent = async (logger?: LoggerType): Promise<OptionalProxyObject> => {
+export const createRandomProxyAgent = async (
+  updateProxyLink?: string,
+  logger?: LoggerType
+): Promise<OptionalProxyObject> => {
   const proxy = await getRandomProxy();
 
   if (proxy) {
-    return prepareProxyAgent(proxy, logger);
+    return prepareProxyAgent(proxy, updateProxyLink, logger);
   }
 
   return null;

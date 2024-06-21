@@ -1,8 +1,6 @@
 import settings from '../../_inputs/settings/settings';
-import { WITHDRAW_ERROR } from '../../constants';
-import { ClientType, CryptoCompareResult } from '../../helpers';
+import { getRandomNumber, TransactionCallbackParams } from '../../helpers';
 import { LoggerData } from '../../logger';
-import { LoggerProp } from '../../logger/utils';
 import { makeBinanceWithdraw, makeOkxWithdraw } from '../../modules';
 import {
   AutoGasNetworkSettings,
@@ -10,23 +8,23 @@ import {
   BinanceNetworks,
   OKX_NETWORKS,
   OkxNetworks,
+  OptionalNetworksArray,
   SupportedNetworks,
   Tokens,
-  WalletData,
 } from '../../types';
 import { AutoGasNetworks } from './types';
 
-interface AutoGasProps extends LoggerProp {
-  client: ClientType;
-  network: SupportedNetworks | BinanceNetworks;
-  wallet: WalletData;
-  nativePrices: CryptoCompareResult;
-}
+// interface AutoGasProps extends LoggerProp {
+//   client: ClientType;
+//   network: SupportedNetworks | BinanceNetworks;
+//   wallet: WalletData;
+//   nativePrices: CryptoCompareResult;
+// }
 
-export const runAutoGas = async ({ wallet, logger, client, network, nativePrices }: AutoGasProps) => {
+export const runAutoGas = async (params: TransactionCallbackParams) => {
+  const { wallet, logger, client, network, nativePrices } = params;
   const logTemplate: LoggerData = {
     action: 'runAutoGas',
-    status: 'in progress',
   };
 
   const { autoGas } = settings;
@@ -40,11 +38,8 @@ export const runAutoGas = async ({ wallet, logger, client, network, nativePrices
   const currentAutoGas = autoGas[currentAutoGasNetwork] as AutoGasNetworkSettings;
   const { useAutoGas, minBalance, withdrawToAmount, withdrawSleep, cex, expectedBalance } = currentAutoGas;
 
-  // logger.info(`Running autogas in ${network} network`, logTemplate);
-
   const nativeToken = client.chainData.nativeCurrency.symbol;
   const { int: currentBalance } = await client.getNativeBalance();
-
   if (!useAutoGas) {
     return;
   }
@@ -55,59 +50,71 @@ export const runAutoGas = async ({ wallet, logger, client, network, nativePrices
 
   const baseWithdrawArgs = {
     wallet,
-    withdrawSleep,
+    waitTime: getRandomNumber(withdrawSleep, true),
     nativePrices,
     tokenToWithdraw: nativeToken as Tokens,
     minAndMaxAmount: withdrawToAmount,
+    minAmount: 0,
+    useUsd: false,
+    usePercentBalance: false,
+    minTokenBalance: 0,
+    minDestTokenBalance: 0,
+    randomNetworks: [] as OptionalNetworksArray,
     minNativeBalance: minBalance,
     hideExtraLogs: true,
     logger,
-    expectedBalance,
+    expectedBalance: expectedBalance || [0, 0],
   };
 
-  let isDone = false;
   let successMessage;
-  let errorMessage;
 
   if (cex === 'okx' && OKX_NETWORKS.includes(network as any)) {
     const res = await makeOkxWithdraw({
-      okxWithdrawNetwork: network as OkxNetworks,
+      ...params,
       ...baseWithdrawArgs,
+      okxWithdrawNetwork: network as OkxNetworks,
     });
 
     if (res.status === 'passed' || res.status === 'success') {
-      isDone = true;
       successMessage = res.message;
     } else {
-      errorMessage = res.message;
+      return res;
     }
   }
 
   if (cex === 'binance' && BINANCE_NETWORKS.includes(network as any)) {
     const res = await makeBinanceWithdraw({
-      binanceWithdrawNetwork: network as BinanceNetworks,
+      ...params,
       ...baseWithdrawArgs,
+      binanceWithdrawNetwork: network as BinanceNetworks,
     });
 
     if (res.status === 'passed' || res.status === 'success') {
-      isDone = true;
       successMessage = res.message;
     } else {
-      errorMessage = res.message;
+      return res;
     }
   }
 
-  if (!isDone) {
-    if (errorMessage) {
-      throw new Error(errorMessage);
-    } else {
-      throw new Error(WITHDRAW_ERROR);
-    }
-  }
+  // if (cex === 'bitget') {
+  //   const res = await makeBitgetWithdraw({
+  //     ...params,
+  //     ...baseWithdrawArgs,
+  //     network,
+  //   });
+  //
+  //   if (res.status === 'passed' || res.status === 'success') {
+  //     successMessage = res.message;
+  //   } else {
+  //     return res;
+  //   }
+  // }
 
   if (successMessage) {
     logger.success(successMessage, logTemplate);
   }
+
+  return;
 };
 
 const AUTOGAS_SETTING_MAP: Partial<Record<SupportedNetworks, AutoGasNetworks>> = {

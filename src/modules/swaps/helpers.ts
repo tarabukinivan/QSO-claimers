@@ -2,9 +2,8 @@ import { Hex } from 'viem';
 
 import settings from '../../_inputs/settings/settings';
 import { defaultTokenAbi } from '../../clients/abi';
-import { calculateAmount, ClientType, intToDecimal } from '../../helpers';
-import { ContractPairs, NumberRange, Pairs, SupportedNetworks, SwapModuleNames } from '../../types';
-import { make1inchSwap } from './1inch-swap';
+import { calculateAmount, ClientType, getTrimmedLogsAmount, intToDecimal } from '../../helpers';
+import { ContractPairs, NumberRange, Pairs, SupportedNetworks, SwapModuleNames, Tokens } from '../../types';
 import { SWAP_TOKEN_CONTRACT_BY_NETWORK } from './constants';
 import { makeIzumiSwap } from './izumi-swap';
 import { makeSyncSwap } from './sync-swap';
@@ -26,8 +25,6 @@ export const getModuleForSwap = (swapModuleName: SwapModuleNames) => {
       return makeSyncSwap;
     case 'izumi-swap':
       return makeIzumiSwap;
-    case '1inch-swap':
-      return make1inchSwap;
 
     default:
       return;
@@ -35,7 +32,7 @@ export const getModuleForSwap = (swapModuleName: SwapModuleNames) => {
 };
 
 export const getSwapTgMessage = (srcToken: string, dstToken: string, amount: number) =>
-  `${srcToken} > ${dstToken} ${amount.toFixed(6)}`;
+  `${srcToken} > ${dstToken} ${getTrimmedLogsAmount(amount, srcToken as Tokens)}`;
 
 interface SwapsDataProps {
   client: ClientType;
@@ -129,20 +126,25 @@ export const getSwapsData = async (props: SwapsDataProps) => {
   if (balanceSrcToken.int <= minBalance) {
     return {
       status: 'warning',
-      message: `Balance of ${srcToken}=${balanceSrcToken.int.toFixed(
-        6
-      )} is lower than minTokenBalance=${minBalance.toFixed(6)}`,
+      message: `Balance [${getTrimmedLogsAmount(
+        balanceSrcToken.int,
+        srcToken as Tokens
+      )}] is lower than minTokenBalance [${minBalance}]`,
     };
   }
 
-  const amountToSwapInt = calculateAmount({
+  let amountToSwapInt = calculateAmount({
     minAndMaxAmount,
     usePercentBalance,
     balance: balanceSrcToken.int,
   });
 
+  if (roundAmount) {
+    amountToSwapInt = Number(amountToSwapInt.toFixed(roundAmount));
+  }
+
   const amountToSwapWei = intToDecimal({
-    amount: roundAmount ? Number(amountToSwapInt.toFixed(roundAmount)) : amountToSwapInt,
+    amount: amountToSwapInt,
     decimals: balanceSrcToken.decimals,
   });
 
@@ -150,11 +152,11 @@ export const getSwapsData = async (props: SwapsDataProps) => {
     amountToSwapWei,
     amountToSwapInt,
     balanceSrcToken,
-    srcToken,
-    dstToken,
     isNativeSrcTokenContract,
     isNativeDstTokenContract,
     srcTokenContract,
     dstTokenContract,
+    dstToken: dstToken as Tokens,
+    srcToken: srcToken as Tokens,
   };
 };

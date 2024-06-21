@@ -44,6 +44,16 @@ import { DefaultModuleConfigs } from '../../types';
 
 export const defaultModuleConfigs: DefaultModuleConfigs = {
   // ============== LayerZero ==============
+  'layerZero-check-claim': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    // Сеть для которой выполнять модуль eth | bsc
+    network: 'arbitrum',
+  },
   'layerZero-claim': {
     count: [1, 1],
     indexGroup: 1,
@@ -225,7 +235,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     indexGroup: 0,
 
     // Сеть из которой нужно делать вывод с OKX. eth | optimism | polygon | zkSync
-    okxWithdrawNetwork: 'zkSync',
+    okxWithdrawNetwork: 'optimism',
     // При указании данного поля сеть для вывода будет выбрана рандомно из списка
     // Работает только, если useUsd = true
     // randomOkxWithdrawNetworks: ['optimism', 'polygon', 'arbitrum'],
@@ -249,6 +259,73 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     useUsd: false,
   },
   // ============== Bridges ==============
+  'relay-bridge': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    network: 'optimism',
+    // Бридж будет выполнен рандомно из списка из сети, в которой баланс выше minNativeBalance
+    randomNetworks: [],
+
+    // Модуль будет выполнен, только, если нативный баланс баланс будет выше данного значения
+    minNativeBalance: 0.001,
+
+    // Сеть в которую будет выполнен бридж
+    destinationNetwork: 'arbitrum',
+
+    // Если баланс в сети destinationNetwork кошелька будет ниже этого значения, только тогда будет выполнен модуль
+    minDestNativeBalance: 0.001,
+
+    // Количество нативного токена, которые будут использовано для бриджа
+    minAndMaxAmount: [0.0001, 0.0002],
+    usePercentBalance: false,
+
+    // Бридж не выполнится, если fee будет больше чем указаный
+    maxFee: 0.001,
+
+    // Баланс, который необходимо оставить в сети, с которой выполняется отправка
+    // С данным полем minAndMaxAmount и expectedBalance не учитываются
+    // При этом необходимо закладывать какое-то значением плюсом, которое теоретически уйдет на комиссию
+    balanceToLeft: [0, 0],
+
+    // Ожидаемый баланс в сети destinationNetwork без учета fee
+    expectedBalance: [0, 0],
+  },
+  'orbiter-bridge': {
+    count: [1, 1],
+    indexGroup: 1,
+
+    // Сеть, из которой будут отправлены токены
+    network: 'zkSync',
+
+    // Количество токенов, которые будут использованы для модуля. Можно указать в процентах, если usePercentBalance true
+    minAndMaxAmount: [0.0017, 0.0017],
+    usePercentBalance: false,
+
+    // Сеть, в которую будут отправлены токены через мост
+    destinationNetwork: 'arbitrum',
+  },
+  'meson-bridge': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    tokenToSupply: 'USDT',
+
+    // Сеть с которой будет выполнен бридж
+    network: 'arbitrum',
+
+    // Сеть в которую будет выполнен бридж
+    destinationNetwork: 'zkSync',
+
+    // Если баланс в сети destinationNetwork кошелька будет ниже этого значения, только тогда будет выполнен модуль
+    // Если вам на балансе нужно всего например 0.005 ETH в сети Ethereum, тогда укажите здесь это количество,
+    // чтобы мы ничего не делали с этим кошельком при повторном запуске!
+    minTokenBalance: 0.01,
+
+    // Количество нативного токена, которые будут использовано для бриджа
+    minAndMaxAmount: [0.005, 0.0055],
+    usePercentBalance: false,
+  },
   'routernitro-bridge': {
     count: [1, 1],
     indexGroup: 0,
@@ -292,20 +369,6 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
 
     slippage: 1,
   },
-  'orbiter-bridge': {
-    count: [1, 1],
-    indexGroup: 1,
-
-    // Сеть, из которой будут отправлены токены
-    network: 'arbitrum',
-
-    // Количество токенов, которые будут использованы для модуля. Можно указать в процентах, если usePercentBalance true
-    minAndMaxAmount: [0.0017, 0.0017],
-    usePercentBalance: false,
-
-    // Сеть, в которую будут отправлены токены через мост
-    destinationNetwork: 'zkSync',
-  },
   // ============== Swaps ==============
   'izumi-swap': {
     count: [1, 1],
@@ -315,8 +378,8 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     slippage: 1,
 
     srcToken: 'ETH',
-    // 'USDT' | 'USDC' | 'DAI' | 'WETH' | 'WBTC' | 'SIS' | 'MUTE' | 'BUSD' | 'rETH' | 'PEPE', destination token будет выбран рандомно из списка
-    destTokens: ['USDC', 'USDT'],
+    // USDT, USDC, WETH, destination token будет выбран рандомно из списка
+    destTokens: ['USDC', 'DAI'],
     usePercentBalance: true,
     minAndMaxAmount: [70, 80],
     reverse: false,
@@ -329,8 +392,8 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     slippage: 1,
 
     srcToken: 'ETH',
-    // 'USDT' | 'USDC' | 'DAI' | 'WETH' | 'WBTC' | 'SIS' | 'MUTE' | 'BUSD' | 'rETH' | 'PEPE', destination token будет выбран рандомно из списка
-    destTokens: ['USDC', 'USDT'],
+    // USDT, USDC, WETH, destination token будет выбран рандомно из списка
+    destTokens: ['USDC', 'DAI'],
     usePercentBalance: true,
     minAndMaxAmount: [60, 70],
     reverse: false,
@@ -344,9 +407,23 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
 
     srcToken: 'ETH',
     // 'USDT' | 'USDC' | 'DAI' | 'WETH' | 'WBTC' | 'SIS' | 'MUTE' | 'BUSD' | 'rETH' | 'PEPE', destination token будет выбран рандомно из списка
-    destTokens: ['USDC', 'USDT'],
+    destTokens: ['USDC', 'DAI'],
     usePercentBalance: true,
     minAndMaxAmount: [70, 80],
+    reverse: false,
+  },
+  'odos-swap': {
+    count: [1, 1],
+    delay: [0, 0],
+    indexGroup: 0,
+
+    slippage: 1,
+
+    srcToken: 'ETH',
+    // 'USDT' | 'USDC' | 'DAI' | 'WETH' | 'WBTC' | 'SIS' | 'MUTE' | 'BUSD' | 'rETH' | 'PEPE', destination token будет выбран рандомно из списка
+    destTokens: ['USDC', 'DAI'],
+    usePercentBalance: true,
+    minAndMaxAmount: [60, 70],
     reverse: false,
   },
 };

@@ -67,3 +67,8 @@ export const ZRO_CLAIMER_CONTRACTS: Partial<Record<SupportedNetworks, Hex>> = {
 };
 
 export const API_URL = 'https://www.layerzero.foundation/api';
+
+export const HEADERS = {
+  Priority: 'u=1, i',
+  Referer: 'https://www.layerzero.foundation/eligibility',
+};

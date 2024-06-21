@@ -1,19 +1,22 @@
 import { Hex } from 'viem';
 
 import { defaultTokenAbi } from '../../clients/abi';
-import { MIN_TOKEN_BALANCE_ERROR, SECOND_ADDRESS_EMPTY_ERROR } from '../../constants';
+import { SECOND_ADDRESS_EMPTY_ERROR } from '../../constants';
 import {
   addNumberPercentage,
   calculateAmount,
   decimalToInt,
   getCurrentBalanceByContract,
+  getCurrentSymbolByContract,
   getGasOptions,
   getRandomNumber,
+  getTrimmedLogsAmount,
+  intToDecimal,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../helpers';
-import { TransformedModuleParams } from '../../types';
+import { Tokens, TransformedModuleParams } from '../../types';
 
 export const makeTransferToken = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
   const {
@@ -27,6 +30,8 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     contractAddress,
     logger,
     minTokenBalance,
+    balanceToLeft,
+    minAmount,
   } = params;
   const { walletClient, explorerLink, publicClient } = client;
   const { secondAddress } = wallet;
@@ -47,7 +52,10 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     isNativeContract,
   } = await getCurrentBalanceByContract({ client, contractAddress });
 
-  const amount = calculateAmount({
+  const { symbol } = await getCurrentSymbolByContract({ client, contractAddress });
+  const tokenSymbol = symbol as Tokens;
+
+  let amount = calculateAmount({
     balance: weiBalance,
     minAndMaxAmount,
     usePercentBalance,
@@ -57,8 +65,47 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
 
   if (intBalance < minTokenBalance) {
     return {
+      status: 'passed',
+      message: `Balance ${getTrimmedLogsAmount(
+        intBalance,
+        tokenSymbol
+      )}} in ${network} is lower than minTokenBalance ${minTokenBalance}`,
+    };
+  }
+
+  if (balanceToLeft && balanceToLeft[0] && balanceToLeft[1]) {
+    const balanceToLeftInt = getRandomNumber(balanceToLeft);
+
+    const balanceToLeftWei = intToDecimal({
+      amount: balanceToLeftInt,
+      decimals,
+    });
+
+    amount = weiBalance - balanceToLeftWei;
+
+    if (intBalance - balanceToLeftInt <= 0) {
+      return {
+        status: 'warning',
+        message: `Balance is ${getTrimmedLogsAmount(
+          intBalance,
+          tokenSymbol
+        )}  that is lower than balance to left ${getTrimmedLogsAmount(balanceToLeftInt, tokenSymbol)}`,
+      };
+    }
+  }
+
+  const logCalculatedAmount = `${getTrimmedLogsAmount(
+    decimalToInt({
+      amount,
+      decimals,
+    }),
+    tokenSymbol
+  )}`;
+
+  if (minAmount && amount < minAmount) {
+    return {
       status: 'warning',
-      message: MIN_TOKEN_BALANCE_ERROR,
+      message: `Calculated amount [${logCalculatedAmount}] is lower than provided minAmount [${minAmount}]`,
     };
   }
 
@@ -71,11 +118,13 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     publicClient,
   });
 
+  const transferMsg = `Transferring [${logCalculatedAmount}] in ${network} to [${secondAddress}]...`;
   if (isNativeContract) {
     const gasPrice = await publicClient.getGasPrice();
 
     const reversedFee = getRandomNumber([20, 25]);
     const gasLimit = await publicClient.estimateGas({
+      account: client.walletAddress,
       to: secondAddress as Hex,
       value: amount,
       data: '0x',
@@ -90,12 +139,17 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     if (value <= 0n) {
       return {
         status: 'passed',
-        message: `Fee of transaction [${decimalToInt({
-          amount: feeWithPercent,
-          decimals,
-        }).toFixed(7)}}] is bigger than current balance [${intBalance.toFixed(7)}]`,
+        message: `Fee of transaction [${getTrimmedLogsAmount(
+          decimalToInt({
+            amount: feeWithPercent,
+            decimals,
+          }),
+          tokenSymbol
+        )}] is bigger than current balance [${getTrimmedLogsAmount(intBalance, tokenSymbol)}]`,
       };
     }
+
+    logger.info(transferMsg);
 
     txHash = await walletClient.sendTransaction({
       to: secondAddress as Hex,
@@ -104,6 +158,8 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
       ...feeOptions,
     });
   } else {
+    logger.info(transferMsg);
+
     txHash = await walletClient.writeContract({
       address: contractAddress as Hex,
       abi: defaultTokenAbi,

@@ -15,9 +15,15 @@ interface GetGasOptions {
   gweiRange?: NumberRange;
   gasLimitRange?: NumberRange;
 }
-export const getGasOptions = async (params: GetGasOptions) => {
+
+export type GetGasOptionsRes =
+  | { maxPriorityFeePerGas: bigint; maxFeePerGas: bigint }
+  | { gasPrice: bigint }
+  | Record<never, never>;
+export const getGasOptions = async (params: GetGasOptions): Promise<GetGasOptionsRes> => {
   const { gweiRange, gasLimitRange, network, publicClient } = params;
 
+  const gweiRangeToUse = gweiRange || settings.gweiRange[network];
   const isLegacy =
     typeof params.isLegacy === 'undefined' ? checkLegacyTypeByNetwork(network) || false : params.isLegacy;
 
@@ -27,9 +33,9 @@ export const getGasOptions = async (params: GetGasOptions) => {
 
   const percentForGwei = 2;
 
-  const isFeeByGweiRange = !!gweiRange && gweiRange[0] !== 0 && gweiRange[1] !== 0;
+  const isFeeByGweiRange = !!gweiRangeToUse && gweiRangeToUse[0] !== 0 && gweiRangeToUse[1] !== 0;
   if (isFeeByGweiRange) {
-    const currentGwei = addNumberPercentage(getRandomNumber(gweiRange), percentForGwei);
+    const currentGwei = addNumberPercentage(getRandomNumber(gweiRangeToUse), percentForGwei);
 
     if (isLegacy) {
       gasPrice = parseCurrentGwei(currentGwei);

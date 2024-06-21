@@ -1,27 +1,27 @@
-import { INCH_KEY } from '../../../_inputs/settings';
-import { NATIVE_TOKEN_CONTRACT } from '../../../constants';
+import { checksumAddress } from 'viem';
+
+import { ZERO_TOKEN_CONTRACT } from '../../../constants';
 import {
   TransactionCallbackParams,
   TransactionCallbackReturn,
-  getAxiosConfig,
   transactionWorker,
   getGasOptions,
-  sleep,
+  getAxiosConfig,
   ResponseStatus,
   showLogMakeSwap,
 } from '../../../helpers';
-import { Tokens, TransformedModuleParams } from '../../../types';
+import { TransformedModuleParams } from '../../../types';
 import { getSwapsData, getSwapTgMessage } from '../helpers';
-import { buildTxData, getRouterContract } from './helpers';
+import { assembleTx, getQuote } from './utils';
 
-export const execMake1inchSwap = async (params: TransformedModuleParams) =>
+export const execMakeOdosSwap = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
-    startLogMessage: 'Execute make 1inch swap...',
-    transactionCallback: make1inchSwap,
+    startLogMessage: 'Execute make odos swap...',
+    transactionCallback: makeOdosSwap,
   });
 
-export const make1inchSwap = async ({
+export const makeOdosSwap = async ({
   pairs,
   logger,
   client,
@@ -29,14 +29,14 @@ export const make1inchSwap = async ({
   slippage,
   gweiRange,
   gasLimitRange,
-  moduleName,
   proxyAgent,
+  moduleName,
   minAndMaxAmount,
   minTokenBalance,
   usePercentBalance,
   contractPairs,
 }: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { walletClient, explorerLink, publicClient, chainData } = client;
+  const { walletClient, explorerLink, publicClient } = client;
 
   const swapsData = await getSwapsData({
     moduleName,
@@ -67,41 +67,36 @@ export const make1inchSwap = async ({
     dstToken,
   } = swapsData;
 
-  if (!INCH_KEY) {
-    return {
-      status: 'critical',
-      message: 'Please provide 1inch API key in the global settings',
-    };
-  }
-
   const config = await getAxiosConfig({
     proxyAgent,
-    token: INCH_KEY,
-  });
-  const routerContract = await getRouterContract({ config, chainId: chainData.id });
-
-  showLogMakeSwap({
-    logger,
-    amount: amountToSwapInt,
-    srcToken: srcToken as Tokens,
-    dstToken: dstToken as Tokens,
   });
 
-  if (!isNativeSrcTokenContract) {
-    await client.approve(srcTokenContract, routerContract, balanceSrcToken.wei, gweiRange, gasLimitRange);
-  }
-
-  await sleep(5);
-
-  const { tx } = await buildTxData({
+  const pathId = await getQuote({
     config,
     slippage,
     amount: amountToSwapWei,
-    from: client.walletAddress,
     chainId: client.chainData.id,
-    src: isNativeSrcTokenContract ? NATIVE_TOKEN_CONTRACT : srcTokenContract,
-    dst: isNativeDstTokenContract ? NATIVE_TOKEN_CONTRACT : dstTokenContract,
+    walletAddress: client.walletAddress,
+    srcTokenContract: isNativeSrcTokenContract ? ZERO_TOKEN_CONTRACT : srcTokenContract,
+    dstTokenContract: isNativeDstTokenContract ? ZERO_TOKEN_CONTRACT : dstTokenContract,
   });
+  const txData = await assembleTx({
+    config,
+    pathId,
+    walletAddress: client.walletAddress,
+  });
+  const toContract = checksumAddress(txData.to);
+
+  showLogMakeSwap({
+    amount: amountToSwapInt,
+    logger,
+    srcToken,
+    dstToken,
+  });
+
+  if (!isNativeSrcTokenContract) {
+    await client.approve(srcTokenContract, toContract, balanceSrcToken.wei, gweiRange, gasLimitRange);
+  }
 
   const feeOptions = await getGasOptions({
     gweiRange,
@@ -111,18 +106,18 @@ export const make1inchSwap = async ({
   });
 
   const txHash = await walletClient.sendTransaction({
-    to: routerContract,
-    data: tx.data,
-    value: BigInt(tx.value),
+    to: toContract,
+    data: txData.data,
+    value: BigInt(txData.value),
     ...feeOptions,
   });
 
   await client.waitTxReceipt(txHash);
 
   return {
+    status: 'success',
     txHash,
     explorerLink,
-    status: 'success',
     tgMessage: getSwapTgMessage(srcToken, dstToken, amountToSwapInt),
   };
 };

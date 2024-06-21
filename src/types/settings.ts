@@ -4,7 +4,7 @@ import { AutoGasNetworks } from '../managers/auto-gas/types';
 import { NumberRange } from './common';
 import { UserModuleConfig } from './module';
 import { SupportedNetworks } from './networks';
-import { AvailableSwapTokens } from './tokens';
+import { AvailableSwapTokens, Tokens } from './tokens';
 
 export type MaxGasSetting = Partial<Record<SupportedNetworks, number>>;
 export type GasMultiplierSettings = Partial<Record<SupportedNetworks, number>>;
@@ -43,6 +43,7 @@ export interface FilterSettings {
 }
 
 export type MinTokenBalanceSettings = Partial<Record<AvailableSwapTokens, number>>;
+export type TrimLogsAmountSettings = Partial<Record<Tokens, number>> & { default: number };
 
 export interface DefaultSettings {
   // routes?: Route[];
@@ -56,6 +57,8 @@ export interface DefaultSettings {
   gasMultiplier: GasMultiplierSettings;
   invitesAmount?: InvitesAmount;
   autoGas: AutoGasSettings;
+  logsTrimNumber: TrimLogsAmountSettings;
+  gweiRange: Partial<Record<SupportedNetworks, NumberRange>>;
 
   txAttemptsToChangeProxy: number;
   useProxy: boolean;

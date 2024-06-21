@@ -1,10 +1,16 @@
+import axios from 'axios';
+import { formatEther } from 'ethers';
+import { Hex } from 'viem';
+
 import {
   calculateAmount,
   decimalToInt,
+  getAxiosConfig,
   getClientByNetwork,
   getContractData,
   getExpectedBalance,
   getGasOptions,
+  getHeaders,
   getRandomNetwork,
   getRandomNumber,
   getTrimmedLogsAmount,
@@ -15,17 +21,18 @@ import {
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../helpers';
+import { getAmount, getDonationData, getEligibilityData } from '../../../scripts/claimers/modules/layer-zero/helpers';
 import { Tokens, TransformedModuleParams } from '../../../types';
-import { MIN_AMOUNT_TO_BRIDGE, ORBITER_BRIDGE_CONTRACT, TRADING_FEE } from './constants';
-import { getOrbiterValue } from './helpers';
-export const execOrbiterBridge = async (params: TransformedModuleParams) =>
+import { API_URL, HEADERS } from './constants';
+
+export const execMakeRelayBridge = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
-    startLogMessage: 'Execute make orbiter bridge...',
-    transactionCallback: makeOrbiterBridge,
+    startLogMessage: 'Execute make relay bridge...',
+    transactionCallback: makeRelayBridge,
   });
 
-export const makeOrbiterBridge = async ({
+export const makeRelayBridge = async ({
   client,
   logger,
   balanceToLeft,
@@ -36,16 +43,17 @@ export const makeOrbiterBridge = async ({
   expectedBalance,
   minAmount,
   usePercentBalance,
+  proxyAgent,
   gweiRange,
+  maxFee,
   network,
   randomNetworks,
   minNativeBalance,
   minDestNativeBalance,
   useUsd,
   nativePrices,
+  addDonationAmount,
 }: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { int: balance } = await client.getNativeBalance();
-
   const destinationClient = getClientByNetwork(destinationNetwork, wallet.privKey, logger);
   const destinationNativeBalance = await destinationClient.getNativeBalance();
 
@@ -69,6 +77,35 @@ export const makeOrbiterBridge = async ({
   });
   let currentToken = token;
 
+  let additionalAmount = 0;
+  if (addDonationAmount) {
+    const headers = getHeaders(HEADERS);
+    const config = await getAxiosConfig({
+      proxyAgent,
+      headers,
+    });
+
+    const eligibilityRes = await getEligibilityData({
+      network: 'arbitrum',
+      walletAddress: wallet.walletAddress as Hex,
+      chainId: 42_161,
+      config,
+    });
+
+    if (eligibilityRes.isEligible) {
+      const { amountInt } = await getAmount(eligibilityRes);
+
+      const { donationAmountInt } = await getDonationData({
+        client,
+        network: 'arbitrum',
+        amountInt,
+        nativePrices,
+      });
+
+      additionalAmount = donationAmountInt;
+    }
+  }
+
   if (randomNetworks?.length) {
     const res = await getRandomNetwork({
       wallet,
@@ -77,7 +114,7 @@ export const makeOrbiterBridge = async ({
       useUsd,
       nativePrices,
       tokenContractInfo,
-      minTokenBalance: minNativeBalance,
+      minTokenBalance: minNativeBalance ? minNativeBalance + additionalAmount : minNativeBalance,
       client: currentClient,
       network: currentNetwork,
       token: currentToken,
@@ -93,15 +130,24 @@ export const makeOrbiterBridge = async ({
     currentToken = res.token;
   }
 
-  const { walletClient, publicClient, explorerLink } = currentClient;
+  const { walletClient, publicClient, walletAddress, chainData, explorerLink } = currentClient;
+
+  const dstChainId = destinationClient.chainData.id;
 
   const nativeBalance = await currentClient.getNativeBalance();
 
-  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(expectedBalance);
+  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(
+    expectedBalance && expectedBalance[0] && expectedBalance[1]
+      ? [expectedBalance[0] + additionalAmount, expectedBalance[1] + additionalAmount]
+      : expectedBalance
+  );
 
   let amountWei;
   if (balanceToLeft && balanceToLeft[0] && balanceToLeft[1]) {
-    const balanceToLeftInt = getRandomNumber(balanceToLeft);
+    const balanceToLeftInt = getRandomNumber([
+      balanceToLeft[0] + additionalAmount,
+      balanceToLeft[1] + additionalAmount,
+    ]);
 
     const balanceToLeftWei = intToDecimal({
       amount: balanceToLeftInt,
@@ -127,7 +173,10 @@ export const makeOrbiterBridge = async ({
     amountWei = calculateAmount({
       balance: nativeBalance.wei,
       isBigInt: true,
-      minAndMaxAmount,
+      minAndMaxAmount:
+        minAndMaxAmount && minAndMaxAmount[0] && minAndMaxAmount[1]
+          ? [minAndMaxAmount[0] + additionalAmount, minAndMaxAmount[1] + additionalAmount]
+          : minAndMaxAmount,
       usePercentBalance,
       decimals: nativeBalance.decimals,
     });
@@ -144,16 +193,45 @@ export const makeOrbiterBridge = async ({
     };
   }
 
-  const minAmountToMakeBridge = MIN_AMOUNT_TO_BRIDGE + TRADING_FEE;
+  const requestBody = {
+    user: walletAddress,
+    originChainId: chainData.id,
+    destinationChainId: dstChainId,
+    currency: 'eth',
+    recipient: walletAddress,
+    amount: amountWei.toString(),
+    usePermit: false,
+    useExternalLiquidity: false,
+    source: 'relay.link',
+  };
 
-  if (balance < minAmount || minAmount < minAmountToMakeBridge) {
-    return {
-      status: 'warning',
-      message: 'Insufficient balance for bridge',
-    };
+  const headers = getHeaders(HEADERS);
+  const config = await getAxiosConfig({
+    proxyAgent,
+    headers,
+  });
+
+  const { data } = await axios.post(API_URL, requestBody, config);
+
+  let txData = data.steps[0].items[0].data;
+
+  let relayerFee = parseFloat(formatEther(data.fees.relayer));
+
+  while (relayerFee > maxFee) {
+    await sleep(
+      90,
+      {},
+      logger,
+      `Current fee ${getTrimmedLogsAmount(relayerFee)} is more than ${getTrimmedLogsAmount(maxFee)}. Waiting 90s...`
+    );
+
+    const { data } = await axios.post(API_URL, requestBody, config);
+
+    txData = data.steps[0].items[0].data;
+    relayerFee = parseFloat(formatEther(data.fees.relayer));
   }
 
-  const logAmount = getTrimmedLogsAmount(amountInt, currentToken);
+  const logAmount = getTrimmedLogsAmount(amountInt + relayerFee, currentToken);
   logger.info(`Making bridge of [${logAmount}] from [${currentNetwork}] to [${destinationNetwork}].`);
 
   const feeOptions = await getGasOptions({
@@ -162,18 +240,14 @@ export const makeOrbiterBridge = async ({
     network: currentNetwork,
     publicClient,
   });
-
-  const value = getOrbiterValue(amountInt, destinationNetwork);
-
-  const request = await walletClient.prepareTransactionRequest({
-    account: walletClient.account,
-    to: ORBITER_BRIDGE_CONTRACT,
-    value,
+  const txHash = await walletClient.sendTransaction({
+    to: txData.to,
+    data: txData.data,
+    value: BigInt(+txData.value),
     ...feeOptions,
   });
 
-  const signature = await walletClient.signTransaction(request);
-  const txHash = await walletClient.sendRawTransaction({ serializedTransaction: signature });
+  await currentClient.waitTxReceipt(txHash);
 
   const transaction = await publicClient.getTransactionReceipt({ hash: txHash });
 
@@ -192,7 +266,7 @@ export const makeOrbiterBridge = async ({
       status: 'success',
       txHash,
       explorerLink,
-      tgMessage: `Bridged [${currentNetwork}] > [${destinationNetwork}] | Amount [${logAmount}]`,
+      tgMessage: `Relay [${currentNetwork}] > [${destinationNetwork}] | Amount [${logAmount}]`,
     };
   }
 

@@ -4,12 +4,21 @@ import axios, { AxiosError } from 'axios';
 import { okx } from 'ccxt';
 
 import { OKX } from '../../_inputs/settings';
-import settings from '../../_inputs/settings/settings';
-import { EMPTY_BALANCE_ERROR, LOW_AMOUNT_ERROR, OKX_WL_ERROR } from '../../constants';
-import { chunkArray, getRandomNumber, prepareProxy, retry, sleep } from '../../helpers';
+import { BASE_TIMEOUT, EMPTY_BALANCE_ERROR, LOW_AMOUNT_ERROR, OKX_WL_ERROR } from '../../constants';
+import {
+  chunkArray,
+  createProxyAgent,
+  getAxiosConfig,
+  getRandomNumber,
+  getTrimmedLogsAmount,
+  prepareProxy,
+  retry,
+  showLogMakeWithdraw,
+  sleep,
+} from '../../helpers';
 import type { LoggerData, LoggerType } from '../../logger';
 import { OKX_FEE_NETWORK_MAP, OKX_NETWORK_MAP } from '../../modules/okx-withdraw/constants';
-import { OkxNetworks, Token, Tokens } from '../../types';
+import { OkxNetworks, ProxyAgent, SupportedNetworks, Token, Tokens } from '../../types';
 import {
   CheckWithdrawal,
   GetAuthHeadersProps,
@@ -49,6 +58,7 @@ export class Okx {
   // OKX singleton instance
   private static instance: Okx | null = null;
   private readonly hideExtraLogs: boolean;
+  private proxyAgent?: ProxyAgent;
 
   constructor({ secrets, logger, random, amount, hideExtraLogs }: OkxConstructor) {
     this.logger = logger;
@@ -85,21 +95,21 @@ export class Okx {
   }
 
   private setOkxController() {
-    const okxController = new okx({
-      ...this.secrets,
-      enableRateLimit: true,
-    });
+    if (this.proxy) {
+      const proxyObject = prepareProxy(this.proxy, this.logger);
+      const proxyAgent = createProxyAgent(proxyObject?.url);
 
-    if (this.proxy && settings.useProxy) {
-      const proxyObject = prepareProxy({
-        proxy: this.proxy,
-        proxy_type: 'HTTP',
-      });
-
-      if (proxyObject) {
-        okxController.https_proxy = proxyObject.url;
+      if (proxyAgent) {
+        this.proxyAgent = proxyAgent;
       }
     }
+
+    const okxController = new okx({
+      ...this.secrets,
+      ...(!!this.proxyAgent && { agent: this.proxyAgent }),
+      enableRateLimit: true,
+      timeout: BASE_TIMEOUT,
+    });
 
     return okxController;
   }
@@ -111,7 +121,6 @@ export class Okx {
       const e = error as Error;
       this.logger?.info(e.message, {
         action: 'authGuard',
-        status: 'failed',
       });
       throw new Error(e.message);
     }
@@ -130,7 +139,6 @@ export class Okx {
           `Withdraw is unavailable for this moment. Next attempt will be in ${sleepTime / 60} minutes`,
           {
             action: 'checkNetConnection',
-            status: 'failed',
           }
         );
         await sleep(sleepTime);
@@ -142,42 +150,40 @@ export class Okx {
     return this.okxController.fetchBalance();
   }
   async getWithdrawFee(token: string, network: string, inputNetwork: OkxNetworks) {
-    try {
-      // todo add types for this fetcher
-      const feesData = (await this.okxController.fetchDepositWithdrawFees([token])) as any;
-      const tokenNetworks = feesData[token]?.networks;
-      const feeNetwork = OKX_FEE_NETWORK_MAP[inputNetwork];
+    // try {
+    // todo add types for this fetcher
+    const feesData = (await this.okxController.fetchDepositWithdrawFees([token])) as any;
+    const tokenNetworks = feesData[token]?.networks;
+    const feeNetwork = OKX_FEE_NETWORK_MAP[inputNetwork];
 
-      const feeInfo = tokenNetworks?.[feeNetwork] || tokenNetworks?.[network] || tokenNetworks?.[token];
+    const feeInfo = tokenNetworks?.[feeNetwork] || tokenNetworks?.[network] || tokenNetworks?.[token];
 
-      if (!feeInfo) {
-        throw new Error('No fee info');
-      }
-
-      return feeInfo.withdraw.fee;
-    } catch (error) {
-      const withdrawFees = this.random?.withdrawFees;
-      if (!withdrawFees) {
-        this.logger?.info(`${error}. withdrawFees can not be empty.`, {
-          action: 'getWithdrawFee',
-          status: 'failed',
-        });
-      }
-
-      this.logger?.info(`${error}. Script will use withdraw fee from config - ${withdrawFees}.`, {
-        action: 'getWithdrawFee',
-        status: 'in progress',
-      });
-
-      return withdrawFees;
+    if (!feeInfo) {
+      throw new Error(`No OKX fee info for ${token}`);
     }
+
+    return feeInfo.withdraw.fee;
+    // } catch (error) {
+    //   const withdrawFees = this.random?.withdrawFees;
+    //   // if (!withdrawFees) {
+    //   //   this.logger?.info(`${error}. withdrawFees can not be empty.`, {
+    //   //     action: 'getWithdrawFee',
+    //   //   });
+    //   // }
+    //
+    //   // this.logger?.info(`${error}. Script will use withdraw fee from config - ${withdrawFees}.`, {
+    //   //   action: 'getWithdrawFee',
+    //   // });
+    //
+    //   return withdrawFees;
+    // }
   }
 
   async execWithdraw({ walletAddress, token, network, minAmount }: ExecWithdrawParams): Promise<string> {
     const logTemplate: LoggerData = {
       action: 'execOkxWithdraw',
-      status: 'in progress',
     };
+
     const lowAmountErrMessage = 'Withdrawal amount is lower than the lower limit';
 
     try {
@@ -187,12 +193,23 @@ export class Okx {
       const chainName = this.getChainName(token, okxNetwork);
 
       const withdrawFee = await this.getWithdrawFee(token, okxNetwork, network);
+
       const amount = `${+this.getWithdrawAmount() + withdrawFee}`;
 
       if (minAmount && +amount < minAmount) {
         throw new Error(lowAmountErrMessage);
       }
-      this.logger?.info(`Withdrawing ${(+amount).toFixed(5)} ${token} in ${chainName}`, logTemplate);
+
+      if (this.logger) {
+        showLogMakeWithdraw({
+          logger: this.logger,
+          logTemplate,
+          token,
+          amount: +amount,
+          network: chainName as SupportedNetworks,
+          cex: 'OKX',
+        });
+      }
 
       const res = await retry({
         callback: () =>
@@ -214,10 +231,9 @@ export class Okx {
       }
 
       this.logger?.success(
-        `${(+amount).toFixed(5)} ${token} were send. We are waiting for the withdrawal from OKX, relax...`,
+        `${getTrimmedLogsAmount(+amount, token)} were send. We are waiting for the withdrawal from OKX, relax...`,
         {
           ...logTemplate,
-          status: 'succeeded',
         }
       );
 
@@ -292,6 +308,10 @@ export class Okx {
       'OK-ACCESS-PASSPHRASE': this.secrets.password,
     };
   }
+  private async getConfig(props: GetAuthHeadersProps) {
+    const headers = this.getAuthHeaders(props);
+    return getAxiosConfig({ headers, proxyAgent: this.proxyAgent });
+  }
 
   private async transferBalanceFromSubToMain({ symbol, amount, subAccName }: TransferBalanceFromSubToMain) {
     try {
@@ -304,11 +324,9 @@ export class Okx {
         type: '2',
         subAcct: subAccName,
       };
-      const headers = this.getAuthHeaders({ requestPath, method: 'POST', body: JSON.stringify(body) });
 
-      const response = await axios.post(`${OKX_DOMAIN}${requestPath}`, body, {
-        headers,
-      });
+      const config = await this.getConfig({ requestPath, method: 'POST', body: JSON.stringify(body) });
+      const response = await axios.post(`${OKX_DOMAIN}${requestPath}`, body, config);
 
       const data = response.data.data;
       if (!data.length) {
@@ -317,10 +335,7 @@ export class Okx {
       const { amt } = data[0];
 
       this.logger?.success(
-        `${(+amt).toFixed(5)} ${symbol} has been sent from sub-account [${subAccName}] to main account`,
-        {
-          status: 'succeeded',
-        }
+        `${getTrimmedLogsAmount(+amt, symbol as Tokens)} has been sent from sub-account [${subAccName}] to main account`
       );
     } catch (error) {
       this.logger?.error(`Unable to transfer ${symbol}: ${this.getTransferErrorMessage(error)}`);
@@ -336,11 +351,9 @@ export class Okx {
         to: FUNDING_ACCOUNT,
         type: '0',
       };
-      const headers = this.getAuthHeaders({ requestPath, method: 'POST', body: JSON.stringify(body) });
 
-      const response = await axios.post(`${OKX_DOMAIN}${requestPath}`, body, {
-        headers,
-      });
+      const config = await this.getConfig({ requestPath, method: 'POST', body: JSON.stringify(body) });
+      const response = await axios.post(`${OKX_DOMAIN}${requestPath}`, body, config);
 
       const data = response.data.data;
       if (!data.length) {
@@ -348,9 +361,9 @@ export class Okx {
       }
       const { amt } = data[0];
 
-      this.logger?.success(`${(+amt).toFixed(5)} ${symbol} has been sent from trading account to main account`, {
-        status: 'succeeded',
-      });
+      this.logger?.success(
+        `${getTrimmedLogsAmount(+amt, symbol as Tokens)} has been sent from trading account to main account`
+      );
     } catch (error) {
       this.logger?.error(`Unable to transfer ${symbol}: ${this.getTransferErrorMessage(error)}`);
     }
@@ -366,20 +379,18 @@ export class Okx {
         toAddr: email,
         dest: INTERNAL_TRANSFER,
       };
-      const headers = this.getAuthHeaders({ requestPath, method: 'POST', body: JSON.stringify(body) });
 
-      const response = await axios.post(`${OKX_DOMAIN}${requestPath}`, body, {
-        headers,
-      });
+      const config = await this.getConfig({ requestPath, method: 'POST', body: JSON.stringify(body) });
+      const response = await axios.post(`${OKX_DOMAIN}${requestPath}`, body, config);
 
       const data = response.data.data;
       if (!data.length) {
         throw new Error(`Unable to transfer ${symbol} balance successfully: ${response.data.msg}`);
       }
       const { amt } = data[0];
-      this.logger?.success(`${(+amt).toFixed(5)} ${symbol} has been sent from current account to collect account`, {
-        status: 'succeeded',
-      });
+      this.logger?.success(
+        `${getTrimmedLogsAmount(+amt, symbol as Tokens)} has been sent from current account to collect account`
+      );
     } catch (error) {
       this.logger?.error(`Unable to transfer ${symbol}: ${this.getTransferErrorMessage(error)}`);
     }
@@ -388,36 +399,32 @@ export class Okx {
   private async getSubAccountBalances(subAccName: string) {
     const requestPath = `/api/v5/asset/subaccount/balances?subAcct=${subAccName}`;
 
-    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, {
-      headers: this.getAuthHeaders({ requestPath }),
-    });
+    const config = await this.getConfig({ requestPath });
+    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
 
     return response.data.data;
   }
   async getMainAccountBalanceByToken(tokenName: string = 'ETH') {
     const requestPath = `/api/v5/asset/balances?ccy=${tokenName}`;
 
-    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, {
-      headers: this.getAuthHeaders({ requestPath }),
-    });
+    const config = await this.getConfig({ requestPath });
+    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
 
     return response.data.data;
   }
   async getMainAccountBalances() {
     const requestPath = '/api/v5/asset/balances';
 
-    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, {
-      headers: this.getAuthHeaders({ requestPath }),
-    });
+    const config = await this.getConfig({ requestPath });
+    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
 
     return response.data.data;
   }
   async getMainAccountCurrencies(): Promise<string[]> {
     const requestPath = '/api/v5/asset/currencies';
 
-    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, {
-      headers: this.getAuthHeaders({ requestPath }),
-    });
+    const config = await this.getConfig({ requestPath });
+    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
 
     const currencies = response.data.data?.map(({ ccy }: { ccy: string }) => ccy) || [];
 
@@ -436,9 +443,8 @@ export class Okx {
     for (const chunk of chunkedCurrencies) {
       const requestPath = `/api/v5/account/balance?ccy=${chunk.join(',')}`;
 
-      const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, {
-        headers: this.getAuthHeaders({ requestPath }),
-      });
+      const config = await this.getConfig({ requestPath });
+      const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
 
       const data = response.data.data || [];
 
@@ -452,9 +458,8 @@ export class Okx {
   async getTradingAccountBalanceByToken(tokenName: string = 'ETH') {
     const requestPath = `/api/v5/account/balances?ccy=${tokenName}`;
 
-    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, {
-      headers: this.getAuthHeaders({ requestPath }),
-    });
+    const config = await this.getConfig({ requestPath });
+    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
 
     return response.data.data;
   }
@@ -474,15 +479,19 @@ export class Okx {
         const balances = await this.getSubAccountBalances(subAccName);
 
         if (!balances.length) {
+          this.logger?.info(`Balance of ${subAccName} account is empty`);
+
           continue;
         }
 
         this.logger?.info(
-          `Balance of ${subAccName}: ${balances.map(({ availBal, ccy }: any) => `${ccy}=${(+availBal).toFixed(5)}`)}`
+          `Balance of [${subAccName}]: ${balances.map(
+            ({ availBal, ccy }: any) => `${getTrimmedLogsAmount(+availBal, ccy as Tokens)}`
+          )}`
         );
 
         for (const { availBal, ccy } of balances) {
-          if (!tokens?.length || tokens.includes(ccy)) {
+          if ((!tokens?.length || tokens.includes(ccy)) && availBal > 0) {
             await this.transferBalanceFromSubToMain({ amount: availBal, subAccName, symbol: ccy });
 
             await sleep(1);
@@ -498,15 +507,19 @@ export class Okx {
       const balances = await this.getTradingAccountBalances();
 
       if (!balances.length) {
+        this.logger?.info('Balance of trading account is empty');
+
         return;
       }
 
       this.logger?.info(
-        `Balance of trading account: ${balances.map(({ availBal, ccy }: any) => `${ccy}=${(+availBal).toFixed(5)}`)}`
+        `Balance of trading account: ${balances.map(
+          ({ availBal, ccy }: any) => `${getTrimmedLogsAmount(+availBal, ccy as Tokens)}`
+        )}`
       );
 
       for (const { availBal, ccy } of balances) {
-        if (!tokens?.length || tokens.includes(ccy)) {
+        if ((!tokens?.length || tokens.includes(ccy)) && availBal > 0) {
           await this.transferBalanceFromTradingToFunding({ amount: availBal, symbol: ccy });
 
           await sleep(1);
@@ -521,11 +534,13 @@ export class Okx {
       const balances = await this.getMainAccountBalances();
 
       if (!balances.length) {
+        this.logger?.info('Balance of main account is empty');
+
         return;
       }
 
       for (const { availBal, ccy } of balances) {
-        if (!tokens?.length || tokens.includes(ccy)) {
+        if ((!tokens?.length || tokens.includes(ccy)) && availBal > 0) {
           await this.transferBalanceToAnotherAcc({ email, amount: availBal, symbol: ccy });
 
           await sleep(1);

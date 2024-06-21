@@ -19,19 +19,20 @@ import {
 import { TransformedModuleParams } from '../../../../types';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
-import { ZRO_CONTRACT } from './constants';
+import { ZRO_ABI, ZRO_CLAIM_CONTRACTS, ZRO_CLAIMER_CONTRACTS, ZRO_CONTRACT } from './constants';
 import { getBalance } from './helpers';
 
 export const execMakeTransferClaimLayerZero = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
-    startLogMessage: 'Execute make transfer claimed LayerZero...',
+    startLogMessage: 'Execute make transfer claimed $ZRO...',
     transactionCallback: makeTransferClaimLayerZero,
   });
 
 const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
   const { client, dbSource, minAndMaxAmount, usePercentBalance, wallet, gweiRange, gasLimitRange, network, logger } =
     params;
+
   const { walletClient, walletAddress, publicClient, explorerLink } = client;
 
   let nativeBalance = 0;
@@ -67,8 +68,34 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
   walletInDb = await dbRepo.save(created);
 
   try {
+    const zroClaimedContract = ZRO_CLAIMER_CONTRACTS[network];
+    const contract = ZRO_CLAIM_CONTRACTS[network];
+    if (!contract || !zroClaimedContract) {
+      throw new Error(`Network ${network} is not supported`);
+    }
+
     const { int } = await client.getNativeBalance();
     nativeBalance = +int.toFixed(6);
+
+    const claimed = (await publicClient.readContract({
+      address: zroClaimedContract,
+      abi: ZRO_ABI,
+      functionName: 'zroClaimed',
+      args: [walletAddress],
+    })) as bigint;
+
+    if (claimed === 0n) {
+      await dbRepo.update(walletInDb.id, {
+        status: CLAIM_STATUSES.NOT_CLAIMED,
+        nativeBalance,
+        balance: currentBalance,
+      });
+
+      return {
+        status: 'passed',
+        message: getCheckClaimMessage(CLAIM_STATUSES.NOT_CLAIMED),
+      };
+    }
 
     const secondAddress = wallet.secondAddress;
     if (!secondAddress) {
@@ -96,7 +123,7 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
       throw new Error(ZERO_TRANSFER_AMOUNT);
     }
 
-    logger.info(`Sending ${amountToTransfer} ZRO to ${secondAddress}...`);
+    logger.info(`Sending ${amountToTransfer} $ZRO to ${secondAddress}...`);
 
     const txHash = await walletClient.writeContract({
       address: ZRO_CONTRACT,
@@ -123,7 +150,7 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
     });
 
     return {
-      tgMessage: `Sent ${amountToTransfer} ZRO to ${secondAddress}`,
+      tgMessage: `Sent ${amountToTransfer} $ZRO to ${secondAddress}`,
       status: 'success',
       txHash,
       explorerLink,

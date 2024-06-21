@@ -12,13 +12,35 @@ const groupSettings: GroupSettings = {};
 
 const modules: UserModuleConfig[] = [
   {
+    moduleName: 'layerZero-check-claim',
+
+    indexGroup: 0,
+  },
+  {
+    moduleName: 'okx-withdraw',
+
+    okxWithdrawNetwork: 'arbitrum',
+    tokenToWithdraw: 'ETH',
+
+    // Добавит к значению вывода еще посчитанный минимальный донат для клейма
+    addDonationAmount: true,
+    minAndMaxAmount: [0.0015, 0.002],
+    minTokenBalance: 0.0015,
+
+    indexGroup: 1,
+  },
+  {
     moduleName: 'layerZero-claim',
     network: 'arbitrum',
+
+    indexGroup: 3,
   },
   {
     moduleName: 'layerZero-transfer-claim',
     minAndMaxAmount: [100, 100],
     network: 'arbitrum',
+
+    indexGroup: 4,
   },
 ];
 

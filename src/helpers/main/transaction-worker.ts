@@ -99,15 +99,17 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
         const modulesWithoutAutogas: ModuleNames[] = ['binance-withdraw', 'okx-withdraw', 'okx-collect'];
         const moduleName = props.moduleName;
 
+        const params = {
+          ...props,
+          network: currentNetwork,
+          proxyAgent: currentProxyAgent,
+          proxyObject: currentProxyObject,
+          client,
+        };
+
         const shouldRunAutoGas = !modulesWithoutAutogas.includes(moduleName);
         if (shouldRunAutoGas) {
-          await runAutoGas({
-            network: currentNetwork,
-            nativePrices,
-            client,
-            wallet,
-            logger,
-          });
+          await runAutoGas(params);
         }
 
         const response = await transactionCallback({
@@ -299,7 +301,7 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
           const shouldUpdateProxy = checkMultipleOf(attemptsToChangeProxy, currentRetryCount);
 
           if (settings.useProxy && shouldUpdateProxy) {
-            const newProxyData = await createRandomProxyAgent(logger);
+            const newProxyData = await createRandomProxyAgent(wallet.updateProxyLink, logger);
 
             if (newProxyData) {
               const { proxyAgent: newProxyAgent, ...newProxyObject } = newProxyData;

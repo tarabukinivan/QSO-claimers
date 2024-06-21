@@ -15,11 +15,10 @@ export interface WalletData {
   privKey: string;
   walletAddress: string;
   id: string;
-  okxAddress?: string;
   secondAddress?: string;
-  proxy_type?: string;
   proxy?: string;
   index?: number;
+  updateProxyLink?: string;
 }
 
 export interface JsonProxyObject {

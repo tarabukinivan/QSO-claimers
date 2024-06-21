@@ -1,7 +1,7 @@
 import { CLAIM_STATUSES, DB_NOT_CONNECTED } from '../../../../constants';
 import {
+  decimalToInt,
   getAxiosConfig,
-  getGasOptions,
   getHeaders,
   TransactionCallbackParams,
   TransactionCallbackReturn,
@@ -11,20 +11,19 @@ import { TransformedModuleParams } from '../../../../types';
 import { PolyhedraClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
 import { HEADERS, ZRO_ABI, ZRO_CLAIM_CONTRACTS, ZRO_CLAIMER_CONTRACTS } from './constants';
-import { getAmount, getBalance, getDonationData, getEligibilityData, getProofData } from './helpers';
+import { getBalance, getEligibilityData } from './helpers';
 
-export const execMakeClaimLayerZero = async (params: TransformedModuleParams) =>
+export const execMakeCheckClaimLayerZero = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
-    startLogMessage: 'Execute make claim $ZRO...',
-    transactionCallback: makeClaimLayerZero,
+    startLogMessage: 'Execute make check claim $ZRO...',
+    transactionCallback: makeCheckClaimLayerZero,
   });
 
-const makeClaimLayerZero = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { client, nativePrices, tokenToSupply, dbSource, gweiRange, gasLimitRange, wallet, network, proxyAgent } =
-    params;
+const makeCheckClaimLayerZero = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
+  const { client, dbSource, network, wallet, proxyAgent } = params;
 
-  const { walletAddress, walletClient, publicClient, explorerLink } = client;
+  const { walletAddress, publicClient } = client;
 
   if (!dbSource) {
     return {
@@ -45,6 +44,7 @@ const makeClaimLayerZero = async (params: TransactionCallbackParams): Transactio
       index: wallet.index,
     },
   });
+
   if (walletInDb) {
     await dbRepo.remove(walletInDb);
   }
@@ -94,11 +94,13 @@ const makeClaimLayerZero = async (params: TransactionCallbackParams): Transactio
       };
     }
 
-    const proofRes = await getProofData(dataProps);
-    const proofs = proofRes.proof.split('|');
+    const amountWei = BigInt(eligibilityRes.zroAllocation.asBigInt);
+    amountInt = decimalToInt({
+      amount: amountWei,
+      decimals: eligibilityRes.zroAllocation.decimals,
+    });
 
-    const { amountInt: amountIntRes, amountWei } = await getAmount(eligibilityRes);
-    amountInt = amountIntRes;
+    currentBalance = await getBalance(client);
 
     const claimed = (await publicClient.readContract({
       address: zroClaimedContract,
@@ -108,85 +110,41 @@ const makeClaimLayerZero = async (params: TransactionCallbackParams): Transactio
     })) as bigint;
 
     if (claimed > 0n) {
+      if (currentBalance === 0) {
+        await dbRepo.update(walletInDb.id, {
+          status: CLAIM_STATUSES.CLAIMED_AND_SENT,
+          claimAmount: amountInt,
+          nativeBalance,
+          balance: currentBalance,
+        });
+
+        return {
+          status: 'passed',
+          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+        };
+      }
+
       await dbRepo.update(walletInDb.id, {
-        status: CLAIM_STATUSES.ALREADY_CLAIMED,
+        status: CLAIM_STATUSES.CLAIMED_NOT_SENT,
         claimAmount: amountInt,
         nativeBalance,
         balance: currentBalance,
       });
 
       return {
-        status: 'passed',
-        message: getCheckClaimMessage(CLAIM_STATUSES.ALREADY_CLAIMED),
+        status: 'success',
+        message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_NOT_SENT),
       };
     }
-
-    const { donationBalanceInt, donationAmountWei, donationAmountInt } = await getDonationData({
-      client,
-      network,
-      amountInt,
-      nativePrices,
-      tokenToSupply,
-    });
-
-    if (donationBalanceInt < donationAmountInt) {
-      const errMessage = `Balance [${+donationBalanceInt.toFixed(
-        7
-      )} ${tokenToSupply}] is not enough to pay minimal donation [${+donationAmountInt.toFixed(7)} ${tokenToSupply}]`;
-      await dbRepo.update(walletInDb.id, {
-        status: CLAIM_STATUSES.CLAIM_ERROR,
-        claimAmount: amountInt,
-        nativeBalance,
-        balance: currentBalance,
-        error: errMessage,
-      });
-
-      return {
-        status: 'error',
-        message: errMessage,
-      };
-    }
-
-    currentBalance = await getBalance(client);
-
-    const feeOptions = await getGasOptions({
-      gweiRange,
-      gasLimitRange,
-      network,
-      publicClient,
-    });
-
-    const txHash = await walletClient.writeContract({
-      address: contract,
-      abi: ZRO_ABI,
-      functionName: 'donateAndClaim',
-      args: [2, donationAmountWei, amountWei, proofs, walletAddress, '0x'],
-      value: donationAmountWei,
-      ...feeOptions,
-    });
-
-    await client.waitTxReceipt(txHash);
-
-    await dbRepo.update(walletInDb.id, {
-      status: CLAIM_STATUSES.CLAIM_SUCCESS,
-      claimAmount: amountInt,
-      nativeBalance,
-      balance: currentBalance + amountInt,
-    });
 
     return {
-      tgMessage: `Claimed ${amountInt} $ZRO`,
       status: 'success',
-      txHash,
-      explorerLink,
-      message: getCheckClaimMessage(CLAIM_STATUSES.CLAIM_SUCCESS),
+      message: getCheckClaimMessage(CLAIM_STATUSES.NOT_CLAIMED),
     };
   } catch (err) {
     await dbRepo.update(walletInDb.id, {
-      status: CLAIM_STATUSES.CLAIM_ERROR,
-      claimAmount: amountInt,
+      status: CLAIM_STATUSES.CHECK_ERROR,
       nativeBalance,
-      balance: currentBalance,
       error: formatErrMessage(err),
     });
 

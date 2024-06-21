@@ -7,8 +7,9 @@ import {
   transactionWorker,
   getGasOptions,
   ResponseStatus,
+  showLogMakeSwap,
 } from '../../../helpers';
-import { TransformedModuleParams } from '../../../types';
+import { Tokens, TransformedModuleParams } from '../../../types';
 import { SWAP_TOKEN_CONTRACT_BY_NETWORK } from '../constants';
 import { calculateMinAmountOut, getDeadline, getSwapsData, getSwapTgMessage } from '../helpers';
 import {
@@ -93,7 +94,12 @@ export const makeSyncSwap = async ({
     };
   }
 
-  logger.info(`Swapping [${amountToSwapInt}] from ${srcToken} to ${dstToken}...`);
+  showLogMakeSwap({
+    logger,
+    amount: amountToSwapInt,
+    srcToken: srcToken as Tokens,
+    dstToken: dstToken as Tokens,
+  });
 
   if (!isNativeSrcTokenContract) {
     await client.approve(srcTokenContract, routerContractByNetwork, balanceSrcToken.wei, gweiRange, gasLimitRange);

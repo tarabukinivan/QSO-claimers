@@ -3,97 +3,41 @@ import crypto from 'crypto';
 import axios from 'axios';
 
 import { BINANCE } from '../../_inputs/settings';
-import settings from '../../_inputs/settings/settings';
-import { defaultTokenAbi } from '../../clients/abi';
-import { UNABLE_GET_WITHDRAW_FEE_ERROR } from '../../constants';
+import { UNABLE_GET_WITHDRAW_FEE_ERROR, WAIT_TOKENS } from '../../constants';
 import { BINANCE_API_URL, BINANCE_PUBLIC_API_URL } from '../../constants/urls';
 import {
   addNumberPercentage,
-  CryptoCompareResult,
   getAxiosConfig,
   getClientByNetwork,
   getExpectedBalance,
+  getLogMsgWalletToppedUp,
   getProxyAgent,
-  getRandomNumber,
-  getTokenContract,
+  getRandomNetwork,
   getTopUpOptions,
-  GetTopUpOptionsResult,
+  getTrimmedLogsAmount,
+  showLogMakeWithdraw,
   sleep,
   TransactionCallbackParams,
+  TransactionCallbackResponse,
   TransactionCallbackReturn,
   transactionWorker,
+  getContractData,
+  GetTopUpOptionsResult,
 } from '../../helpers';
-import { type LoggerData, LoggerType } from '../../logger';
-import {
-  BinanceNetworks,
-  BinanceTokenData,
-  NumberRange,
-  ProxyAgent,
-  Tokens,
-  TransformedModuleParams,
-  WalletData,
-} from '../../types';
+import { type LoggerData } from '../../logger';
+import { BinanceNetworks, BinanceTokenData, ProxyAgent, Tokens, TransformedModuleParams } from '../../types';
 import { BINANCE_NETWORK_MAP } from './constants';
 
-export const executeBinanceWithdraw = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
-  const {
-    wallet,
-    binanceWithdrawNetwork,
-    tokenToWithdraw,
-    minAndMaxAmount,
-    minTokenBalance,
-    logger,
-    expectedBalance,
-    amount,
-    minAmount,
-    useUsd,
-    randomBinanceWithdrawNetworks,
-    nativePrices,
-    withdrawAdditionalPercent,
-  } = params;
-
-  return makeBinanceWithdraw({
-    wallet,
-    binanceWithdrawNetwork,
-    nativePrices,
-    tokenToWithdraw,
-    minAndMaxAmount,
-    minTokenBalance,
-    logger,
-    expectedBalance,
-    amount,
-    minAmount,
-    useUsd,
-    randomBinanceWithdrawNetworks,
-    withdrawAdditionalPercent,
-  });
-};
-
 interface MakeBinanceWithdraw {
-  binanceWithdrawNetwork: BinanceNetworks;
-  wallet: WalletData;
-  logger: LoggerType;
-  minAndMaxAmount: NumberRange;
-  tokenToWithdraw?: Tokens;
-  nativePrices: CryptoCompareResult;
-  useUsd?: boolean;
-  randomBinanceWithdrawNetworks?: BinanceNetworks[];
-  amount?: number;
-  percentToAdd?: number;
-  minTokenBalance?: number;
-  fee?: number;
-  minAmount?: number;
-  expectedBalance?: NumberRange;
-  withdrawSleep?: NumberRange;
-  hideExtraLogs?: boolean;
   preparedTopUpOptions?: GetTopUpOptionsResult;
-  withdrawAdditionalPercent?: number;
+  hideExtraLogs?: boolean;
   withMinAmountError?: boolean;
 }
-export const makeBinanceWithdraw = async (props: MakeBinanceWithdraw): TransactionCallbackReturn => {
+export const makeBinanceWithdraw = async (
+  props: TransactionCallbackParams & MakeBinanceWithdraw
+): TransactionCallbackReturn => {
   const logTemplate: LoggerData = {
     action: 'execWithdraw',
-    status: 'in progress',
   };
 
   const {
@@ -106,50 +50,62 @@ export const makeBinanceWithdraw = async (props: MakeBinanceWithdraw): Transacti
     tokenToWithdraw: tokenToWithdrawProp,
     minAmount,
     amount,
-    withdrawSleep,
+    waitTime,
     nativePrices,
     hideExtraLogs = false,
     useUsd = false,
     preparedTopUpOptions,
     withdrawAdditionalPercent,
     withMinAmountError,
+    randomBinanceWithdrawNetworks,
   } = props;
 
-  const binanceWithdrawNetwork = binanceWithdrawNetworkProp;
-
-  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(expectedBalance);
-
   let binanceProxyAgent;
-  if (settings.useProxy) {
-    binanceProxyAgent = await getProxyAgent(
-      {
-        proxy: BINANCE.proxy,
-        proxy_type: 'HTTP',
-      },
-      logger
-    );
+  if (BINANCE.proxy) {
+    binanceProxyAgent = await getProxyAgent(BINANCE.proxy, wallet.updateProxyLink, logger);
   }
-  const client = getClientByNetwork(binanceWithdrawNetwork, wallet.privKey, logger);
 
+  let binanceWithdrawNetwork = binanceWithdrawNetworkProp;
+  let client = getClientByNetwork(binanceWithdrawNetwork, wallet.privKey, logger);
   const nativeToken = client.chainData.nativeCurrency.symbol as Tokens;
-  const tokenToWithdraw = tokenToWithdrawProp || nativeToken;
-  const isNativeTokenToWithdraw = tokenToWithdraw === nativeToken;
 
-  let tokenContractInfo;
-  if (!isNativeTokenToWithdraw) {
-    const tokenContract = getTokenContract({
-      tokenName: tokenToWithdraw,
+  let {
+    tokenContractInfo,
+    isNativeToken: isNativeTokenToWithdraw,
+    token: tokenToWithdraw,
+  } = getContractData({
+    nativeToken,
+    network: binanceWithdrawNetwork,
+    token: tokenToWithdrawProp,
+  });
+
+  if (randomBinanceWithdrawNetworks?.length) {
+    const res = await getRandomNetwork({
+      wallet,
+      randomNetworks: randomBinanceWithdrawNetworks,
+      logger,
+      minTokenBalance,
+      useUsd,
+      nativePrices,
+      client,
+      tokenContractInfo,
       network: binanceWithdrawNetwork,
+      token: tokenToWithdraw,
+      isNativeToken: isNativeTokenToWithdraw,
     });
 
-    tokenContractInfo = isNativeTokenToWithdraw
-      ? undefined
-      : {
-          name: tokenToWithdraw,
-          address: tokenContract.address,
-          abi: defaultTokenAbi,
-        };
+    if ('status' in res) {
+      return res as TransactionCallbackResponse;
+    }
+
+    client = res.client;
+    binanceWithdrawNetwork = res.network as BinanceNetworks;
+    tokenContractInfo = res.tokenContractInfo;
+    isNativeTokenToWithdraw = res.isNativeToken;
+    tokenToWithdraw = res.token;
   }
+
+  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(expectedBalance);
 
   const walletAddress = wallet.walletAddress;
 
@@ -196,9 +152,9 @@ export const makeBinanceWithdraw = async (props: MakeBinanceWithdraw): Transacti
   if (currentAmount && currentAmount < (currentMinAmount || 0)) {
     return {
       status: 'warning',
-      message: `Amount ${currentAmount.toFixed(6)} is lower than minAmount ${(currentMinAmount || 0).toFixed(
-        6
-      )}. Increase your minAndMaxAmount or expectedBalance`,
+      message: `Amount [${getTrimmedLogsAmount(currentAmount, tokenToWithdraw)}] is lower than minAmount [${
+        currentMinAmount || 0
+      }]. Increase your minAndMaxAmount or expectedBalance`,
     };
   }
 
@@ -220,7 +176,13 @@ export const makeBinanceWithdraw = async (props: MakeBinanceWithdraw): Transacti
       },
     });
 
-    logger.info(`Withdrawing ${amount.toFixed(6)} ${tokenToWithdraw} in ${binanceWithdrawNetwork}`, logTemplate);
+    showLogMakeWithdraw({
+      logger,
+      token: tokenToWithdraw,
+      amount,
+      network: binanceWithdrawNetwork,
+      cex: 'Binance',
+    });
 
     const { data } = await axios.post(
       `${BINANCE_API_URL}/capital/withdraw/apply${queryParams}`,
@@ -234,31 +196,36 @@ export const makeBinanceWithdraw = async (props: MakeBinanceWithdraw): Transacti
     );
 
     logger.success(
-      `${amount.toFixed(6)} ${tokenToWithdraw} were send. We are waiting for the withdrawal from Binance, relax...`,
+      `[${getTrimmedLogsAmount(
+        amount,
+        tokenToWithdraw
+      )}] were send. We are waiting for the withdrawal from Binance, relax...`,
       {
         ...logTemplate,
-        status: 'succeeded',
       }
     );
 
     let currentBalance = await client.getNativeOrContractBalance(isNativeTokenToWithdraw, tokenContractInfo);
 
     while (!(currentBalance.int > prevTokenBalance)) {
-      const currentSleep = withdrawSleep ? getRandomNumber(withdrawSleep) : 20;
+      const currentSleep = waitTime || 20;
       await sleep(currentSleep);
+
       currentBalance = await client.getNativeOrContractBalance(isNativeTokenToWithdraw, tokenContractInfo);
 
       if (!hideExtraLogs) {
-        logger.info('Tokens are still on the way to your wallet...', logTemplate);
+        logger.info(WAIT_TOKENS, logTemplate);
       }
     }
 
     if (data.id) {
       return {
         status: 'success',
-        message: `Your wallet was successfully topped up from Binance. Current balance is [${currentBalance.int.toFixed(
-          6
-        )} ${tokenToWithdraw}]`,
+        message: getLogMsgWalletToppedUp({
+          cex: 'Binance',
+          balance: currentBalance.int,
+          token: tokenToWithdraw,
+        }),
       };
     }
   }
@@ -293,11 +260,12 @@ const getFee = async (withdrawNetwork: BinanceNetworks, withDrawToken: Tokens, p
 const NETWORK_MAP: Partial<Record<BinanceNetworks, string>> = {
   zkSync: 'zkSyncEra',
   polygon: 'matic',
+  avalanche: 'AVAXC',
 };
 
 export const execBinanceWithdraw = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
     startLogMessage: 'Execute make Binance withdraw...',
-    transactionCallback: executeBinanceWithdraw,
+    transactionCallback: makeBinanceWithdraw,
   });

@@ -1,6 +1,7 @@
+import { SupportedNetworks } from '../../../types';
 import { ORBITER_BRIDGE_CODES } from './constants';
 
-export const getOrbiterValue = (amount: number, destinationNetwork: string) => {
+export const getOrbiterValue = (amount: number, destinationNetwork: SupportedNetworks) => {
   const bridgeCode = ORBITER_BRIDGE_CODES[destinationNetwork];
 
   if (!bridgeCode) {

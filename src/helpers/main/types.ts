@@ -22,7 +22,7 @@ export type TransactionCallbackParams = TransformedModuleParams & {
 export type BaseTransactionWorkerProps = TransformedModuleParams & {
   startLogMessage?: string;
 };
-export type BaseTransactionWorkerWithCallbeckProps = BaseTransactionWorkerProps & TransactionWorkerCallbackProp;
+export type BaseTransactionWorkerWithCallbackProps = BaseTransactionWorkerProps & TransactionWorkerCallbackProp;
 export type TransactionWorkerProps = BaseTransactionWorkerProps & {
   baseNetwork: SupportedNetworks;
   projectName: string;

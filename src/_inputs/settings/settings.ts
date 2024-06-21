@@ -17,7 +17,7 @@ const settings: Settings = {
     beforeTxReceipt: [15, 15], // Задержка перед получением статуса транзакции
     betweenTransactions: [1, 3], // Задержка между транзакциями
     betweenModules: [10, 15], // Задержка между модулями
-    betweenWallets: [10, 40], // Задержка между кошельками
+    betweenWallets: [10, 15], // Задержка между кошельками
     betweenCheckGas: [60, 120], // Задержка между ожиданием газа
     betweenRetries: 30, // Задержка между неудачными транзакциями
     betweenRestarts: 0, // Задержка (в часах) между повторным запуском скрипта (укажите 0, чтоб не запускать повторно)
@@ -42,6 +42,18 @@ const settings: Settings = {
     // Оставьте null чтобы отключить
     // 'Already claimed' | 'Check error' | 'Not eligible' | 'Claimed but not sent' | 'Claimed and sent' | 'Not claimed yet' | 'Claim error' | 'Successfully claimed' | 'Transfer error' | 'Successfully transferred'
     status: 'Not claimed yet',
+  },
+
+  // До какого числа после запятой обрезать значения в логах
+  logsTrimNumber: {
+    ETH: 6,
+    BNB: 4,
+    USDT: 0,
+    USDC: 0,
+    MATIC: 2,
+
+    // Дефолтное значение для значений, не указанных выше
+    default: 6,
   },
 
   // Если значение true, первым делом при восстановлении будет выполняться кошельки, на которых есть модули, которые еще не выполнялись
@@ -86,6 +98,12 @@ const settings: Settings = {
     optimism: 0,
     polygon: 0,
     zkSync: 0,
+  },
+
+  // Диапазон вашего кастомного gwei, который будет применяться для транзакций
+  // bsc: [1, 1.05]
+  gweiRange: {
+    bsc: [1, 1.05],
   },
 
   // Минимальный баланс, который необходим для выполнения свапов

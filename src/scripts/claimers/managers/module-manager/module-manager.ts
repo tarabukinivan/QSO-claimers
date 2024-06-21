@@ -7,6 +7,7 @@ import {
   execMakeTransferClaimLayerZero,
   execMakeTransferClaimPolyhedra,
 } from '../../modules';
+import { execMakeCheckClaimLayerZero } from '../../modules/layer-zero/make-check-claim';
 
 export class ModuleManager extends DefaultModuleManager {
   constructor(args: IModuleManager) {
@@ -22,6 +23,8 @@ export class ModuleManager extends DefaultModuleManager {
       case 'polyhedra-transfer-claim':
         return execMakeTransferClaimPolyhedra;
 
+      case 'layerZero-check-claim':
+        return execMakeCheckClaimLayerZero;
       case 'layerZero-claim':
         return execMakeClaimLayerZero;
       case 'layerZero-transfer-claim':
