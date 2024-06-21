@@ -179,7 +179,12 @@ export class Okx {
     // }
   }
 
-  async execWithdraw({ walletAddress, token, network, minAmount }: ExecWithdrawParams): Promise<string> {
+  async execWithdraw({
+    walletAddress,
+    token,
+    network,
+    minAmount,
+  }: ExecWithdrawParams): Promise<{ id: string; amount: number }> {
     const logTemplate: LoggerData = {
       action: 'execOkxWithdraw',
     };
@@ -237,7 +242,7 @@ export class Okx {
         }
       );
 
-      return res.id;
+      return { id: res.id, amount: +amount };
     } catch (e) {
       const errorMessage = (e as Error)?.message ?? 'unknown error';
 

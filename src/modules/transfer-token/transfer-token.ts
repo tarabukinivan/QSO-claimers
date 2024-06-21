@@ -174,6 +174,7 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
   return {
     txHash,
     explorerLink,
+    tgMessage: `Sent ${logCalculatedAmount} to ${secondAddress}`,
     status: 'success',
   };
 };

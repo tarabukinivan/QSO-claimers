@@ -25,6 +25,7 @@ import {
   getContractData,
   GetTopUpOptionsResult,
   getHeaders,
+  getLogMsgWalletToppedUpTg,
 } from '../../helpers';
 import { type LoggerData } from '../../logger';
 import { HEADERS } from '../../scripts/claimers/modules/layer-zero/constants';
@@ -265,6 +266,11 @@ export const makeBinanceWithdraw = async (
         status: 'success',
         message: getLogMsgWalletToppedUp({
           cex: 'Binance',
+          balance: currentBalance.int,
+          token: tokenToWithdraw,
+        }),
+        tgMessage: getLogMsgWalletToppedUpTg({
+          amount,
           balance: currentBalance.int,
           token: tokenToWithdraw,
         }),

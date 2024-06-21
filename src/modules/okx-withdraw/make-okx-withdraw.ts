@@ -17,6 +17,7 @@ import {
   getContractData,
   getHeaders,
   getAxiosConfig,
+  getLogMsgWalletToppedUpTg,
 } from '../../helpers';
 import { type LoggerData } from '../../logger';
 import { Okx } from '../../managers/okx';
@@ -176,7 +177,7 @@ export const makeOkxWithdraw = async (
 
   if (shouldTopUp) {
     try {
-      const id = await okx.execWithdraw({
+      const { id, amount: sentAmount } = await okx.execWithdraw({
         walletAddress,
         token: tokenToWithdraw,
         network: okxWithdrawNetwork,
@@ -209,6 +210,11 @@ export const makeOkxWithdraw = async (
         status: 'success',
         message: getLogMsgWalletToppedUp({
           cex: 'OKX',
+          balance: currentBalance.int,
+          token: tokenToWithdraw,
+        }),
+        tgMessage: getLogMsgWalletToppedUpTg({
+          amount: sentAmount,
           balance: currentBalance.int,
           token: tokenToWithdraw,
         }),

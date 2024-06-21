@@ -106,6 +106,14 @@ export const getLogMsgWalletToppedUp = ({ cex, token, balance }: WalletToppedUp)
     token
   )}]`;
 };
+interface WalletToppedUpTg {
+  amount: number;
+  balance: number;
+  token: Tokens;
+}
+export const getLogMsgWalletToppedUpTg = ({ amount, token, balance }: WalletToppedUpTg) => {
+  return `Withdrew ${getTrimmedLogsAmount(amount, token)} | Balance ${getTrimmedLogsAmount(balance, token)}`;
+};
 
 const buildFileName = (fileName: string) => {
   return `${fileName}.log`;

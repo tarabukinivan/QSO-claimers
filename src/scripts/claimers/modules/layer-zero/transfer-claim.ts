@@ -151,7 +151,7 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
     });
 
     return {
-      tgMessage: `Sent ${amountToTransfer} $ZRO to ${secondAddress}`,
+      tgMessage: `Sent ${amountToTransferInt} $ZRO to ${secondAddress}`,
       status: 'success',
       txHash,
       explorerLink,
