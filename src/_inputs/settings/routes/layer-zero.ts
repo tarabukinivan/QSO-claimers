@@ -24,8 +24,8 @@ const modules: UserModuleConfig[] = [
 
     // Добавит к значению вывода еще посчитанный минимальный донат для клейма
     addDonationAmount: true,
-    expectedBalance: [0.00055, 0.0012],
-    minTokenBalance: 0.00055,
+    expectedBalance: [0.0011, 0.0015],
+    minTokenBalance: 0.0011,
 
     indexGroup: 1,
   },
