@@ -43,8 +43,8 @@ import { DefaultModuleConfigs } from '../../types';
 // Конфиг, который будет применяться для каждого модуля по умолчанию в случае, если вы пропусили какие-то параметры в роуте
 
 export const defaultModuleConfigs: DefaultModuleConfigs = {
-  // ============== LayerZero ==============
-  'layerZero-check-claim': {
+  // ============== layer-zero ==============
+  'layer-zero-check-claim': {
     count: [1, 1],
     indexGroup: 0,
 
@@ -54,7 +54,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     // Сеть для которой выполнять модуль eth | bsc
     network: 'arbitrum',
   },
-  'layerZero-claim': {
+  'layer-zero-claim': {
     count: [1, 1],
     indexGroup: 1,
 
@@ -66,7 +66,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
 
     tokenToSupply: 'ETH',
   },
-  'layerZero-transfer-claim': {
+  'layer-zero-transfer-claim': {
     count: [1, 1],
     indexGroup: 2,
 

@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { CHECKERS_FOLDER } from '../../../constants';
 import { convertToCsvAndWrite, DataForCsv } from '../../../helpers';
 import { WalletData, WalletWithModules } from '../../../types';
-import { PolyhedraClaimEntity } from '../db/entities';
+import { LayerZeroClaimEntity, PolyhedraClaimEntity } from '../db/entities';
 
 interface SaveResultsFromDb {
   projectName: string;
@@ -28,8 +28,18 @@ export const saveResultsFromDb = async ({ dbSource, projectName, walletsWithModu
     return acc;
   }, []);
 
+  let projectEntity;
+  switch (projectName) {
+    case 'layer-zero':
+      projectEntity = LayerZeroClaimEntity;
+      break;
+
+    default:
+      projectEntity = PolyhedraClaimEntity;
+  }
+
   if (wallets.length) {
-    const dbRepo = dbSource.getRepository(PolyhedraClaimEntity);
+    const dbRepo = dbSource.getRepository(projectEntity);
     const dbData = await dbRepo.find({
       order: {
         walletId: 'ASC',

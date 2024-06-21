@@ -8,7 +8,7 @@ import {
   transactionWorker,
 } from '../../../../helpers';
 import { TransformedModuleParams } from '../../../../types';
-import { PolyhedraClaimEntity } from '../../db/entities';
+import { LayerZeroClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
 import { HEADERS, ZRO_ABI, ZRO_CLAIM_CONTRACTS, ZRO_CLAIMER_CONTRACTS } from './constants';
 import { getBalance, getEligibilityData } from './helpers';
@@ -36,7 +36,7 @@ const makeCheckClaimLayerZero = async (params: TransactionCallbackParams): Trans
   let amountInt = 0;
   let currentBalance = 0;
 
-  const dbRepo = dbSource.getRepository(PolyhedraClaimEntity);
+  const dbRepo = dbSource.getRepository(LayerZeroClaimEntity);
 
   let walletInDb = await dbRepo.findOne({
     where: {

@@ -14,7 +14,7 @@ const groupSettings: GroupSettings = {
 
 const modules: UserModuleConfig[] = [
   {
-    moduleName: 'layerZero-check-claim',
+    moduleName: 'layer-zero-check-claim',
 
     indexGroup: 0,
   },
@@ -34,7 +34,7 @@ const modules: UserModuleConfig[] = [
   {
     moduleName: 'binance-withdraw',
 
-    okxWithdrawNetwork: 'arbitrum',
+    binanceWithdrawNetwork: 'arbitrum',
     tokenToWithdraw: 'ETH',
 
     // Добавит к значению вывода еще посчитанный минимальный донат для клейма
@@ -45,13 +45,13 @@ const modules: UserModuleConfig[] = [
     indexGroup: 1,
   },
   {
-    moduleName: 'layerZero-claim',
+    moduleName: 'layer-zero-claim',
     network: 'arbitrum',
 
     indexGroup: 3,
   },
   {
-    moduleName: 'layerZero-transfer-claim',
+    moduleName: 'layer-zero-transfer-claim',
     minAndMaxAmount: [100, 100],
     network: 'arbitrum',
 

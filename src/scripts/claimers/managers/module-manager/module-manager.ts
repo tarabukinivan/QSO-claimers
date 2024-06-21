@@ -23,11 +23,11 @@ export class ModuleManager extends DefaultModuleManager {
       case 'polyhedra-transfer-claim':
         return execMakeTransferClaimPolyhedra;
 
-      case 'layerZero-check-claim':
+      case 'layer-zero-check-claim':
         return execMakeCheckClaimLayerZero;
-      case 'layerZero-claim':
+      case 'layer-zero-claim':
         return execMakeClaimLayerZero;
-      case 'layerZero-transfer-claim':
+      case 'layer-zero-transfer-claim':
         return execMakeTransferClaimLayerZero;
 
       default:

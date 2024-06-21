@@ -33,9 +33,9 @@ export type ModuleNames =
   | 'polyhedra-claim'
   | 'polyhedra-check-claim'
   | 'polyhedra-transfer-claim'
-  | 'layerZero-claim'
-  | 'layerZero-check-claim'
-  | 'layerZero-transfer-claim';
+  | 'layer-zero-claim'
+  | 'layer-zero-check-claim'
+  | 'layer-zero-transfer-claim';
 
 export type SwapModuleNames = Extract<
   ModuleNames,

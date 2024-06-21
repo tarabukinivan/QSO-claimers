@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 
 import axios from 'axios';
+import { Hex } from 'viem';
 
 import { BINANCE } from '../../_inputs/settings';
 import { UNABLE_GET_WITHDRAW_FEE_ERROR, WAIT_TOKENS } from '../../constants';
@@ -23,8 +24,11 @@ import {
   transactionWorker,
   getContractData,
   GetTopUpOptionsResult,
+  getHeaders,
 } from '../../helpers';
 import { type LoggerData } from '../../logger';
+import { HEADERS } from '../../scripts/claimers/modules/layer-zero/constants';
+import { getAmount, getDonationData, getEligibilityData } from '../../scripts/claimers/modules/layer-zero/helpers';
 import { BinanceNetworks, BinanceTokenData, ProxyAgent, Tokens, TransformedModuleParams } from '../../types';
 import { BINANCE_NETWORK_MAP } from './constants';
 
@@ -47,6 +51,7 @@ export const makeBinanceWithdraw = async (
     logger,
     minTokenBalance,
     minAndMaxAmount,
+    proxyAgent,
     tokenToWithdraw: tokenToWithdrawProp,
     minAmount,
     amount,
@@ -57,6 +62,7 @@ export const makeBinanceWithdraw = async (
     preparedTopUpOptions,
     withdrawAdditionalPercent,
     withMinAmountError,
+    addDonationAmount,
     randomBinanceWithdrawNetworks,
   } = props;
 
@@ -105,9 +111,42 @@ export const makeBinanceWithdraw = async (
     tokenToWithdraw = res.token;
   }
 
-  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(expectedBalance);
-
   const walletAddress = wallet.walletAddress;
+
+  let additionalAmount = 0;
+  if (addDonationAmount) {
+    const headers = getHeaders(HEADERS);
+    const config = await getAxiosConfig({
+      proxyAgent,
+      headers,
+    });
+
+    const eligibilityRes = await getEligibilityData({
+      network: 'arbitrum',
+      walletAddress: walletAddress as Hex,
+      chainId: 42_161,
+      config,
+    });
+
+    if (eligibilityRes.isEligible) {
+      const { amountInt } = await getAmount(eligibilityRes);
+
+      const { donationAmountInt } = await getDonationData({
+        client,
+        network: 'arbitrum',
+        amountInt,
+        nativePrices,
+      });
+
+      additionalAmount = donationAmountInt;
+    }
+  }
+
+  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(
+    expectedBalance && expectedBalance[0] && expectedBalance[1]
+      ? [expectedBalance[0] + additionalAmount, expectedBalance[1] + additionalAmount]
+      : expectedBalance
+  );
 
   const fee = await getFee(binanceWithdrawNetwork, tokenToWithdraw, binanceProxyAgent?.proxyAgent);
   if (!fee) {
@@ -126,12 +165,15 @@ export const makeBinanceWithdraw = async (
       nativePrices,
       currentExpectedBalance,
       isTopUpByExpectedBalance,
-      minTokenBalance,
-      minAndMaxAmount,
+      minTokenBalance: minTokenBalance ? minTokenBalance + additionalAmount : minTokenBalance,
+      minAndMaxAmount:
+        minAndMaxAmount && minAndMaxAmount[0] && minAndMaxAmount[1]
+          ? [minAndMaxAmount[0] + additionalAmount, minAndMaxAmount[1] + additionalAmount]
+          : minAndMaxAmount,
       isNativeTokenToWithdraw,
       tokenContractInfo,
       tokenToWithdraw,
-      amount,
+      amount: amount ? amount + additionalAmount : amount,
       fee,
       network: binanceWithdrawNetwork,
       useUsd,

@@ -8,6 +8,6 @@ export default new DataSource({
   entities: [`${CURRENT_PATH}/entities/*.entity.ts`],
   migrations: [`${CURRENT_PATH}/migrations/*.ts`],
   logging: false,
-  synchronize: false,
+  synchronize: true,
   migrationsRun: true,
 });
