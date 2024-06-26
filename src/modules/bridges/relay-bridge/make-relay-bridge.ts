@@ -222,24 +222,23 @@ export const makeRelayBridge = async ({
 
   let gasFee = data.fees.gas.amount;
   let relayerFee = data.fees.relayer.amount;
-  let parsedRelayerFee = parseFloat(formatEther(relayerFee));
+
+  let totalFee = parseFloat(formatEther(gasFee)) + parseFloat(formatEther(relayerFee));
   let resAmount = amountWei - (BigInt(relayerFee) * 2n + BigInt(gasFee));
 
-  while (parsedRelayerFee > maxFee) {
+  while (totalFee > maxFee) {
     await sleep(
       90,
       {},
       logger,
-      `Current fee ${getTrimmedLogsAmount(parsedRelayerFee)} is more than ${getTrimmedLogsAmount(
-        maxFee
-      )}. Waiting 90s...`
+      `Current fee ${getTrimmedLogsAmount(totalFee)} is more than ${getTrimmedLogsAmount(maxFee)}. Waiting 90s...`
     );
 
     const { data } = await axios.post(API_URL, requestBody, config);
 
     gasFee = data.fees.gas.amount;
     relayerFee = data.fees.relayer.amount;
-    parsedRelayerFee = parseFloat(formatEther(relayerFee));
+    totalFee = parseFloat(formatEther(gasFee)) + parseFloat(formatEther(relayerFee));
     resAmount = amountWei - (BigInt(relayerFee) * 2n + BigInt(gasFee));
   }
 
@@ -252,7 +251,13 @@ export const makeRelayBridge = async ({
 
   const txData = newData.steps[0].items[0].data;
 
-  const logAmount = getTrimmedLogsAmount(amountInt, currentToken);
+  const logAmount = getTrimmedLogsAmount(
+    decimalToInt({
+      amount: BigInt(txData.value),
+      decimals: nativeBalance.decimals,
+    }),
+    currentToken
+  );
   logger.info(`Making bridge of [${logAmount}] from [${currentNetwork}] to [${destinationNetwork}].`);
 
   const feeOptions = await getGasOptions({
@@ -264,7 +269,7 @@ export const makeRelayBridge = async ({
   const txHash = await walletClient.sendTransaction({
     to: txData.to,
     data: txData.data,
-    value: BigInt(+txData.value),
+    value: BigInt(txData.value),
     ...feeOptions,
   });
 

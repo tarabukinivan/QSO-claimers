@@ -151,8 +151,6 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
 
     // Модуль будет выполнен, только, если баланс указанного токена будет выше данного значения
     minTokenBalance: 0,
-
-    gweiRange: [0, 0],
   },
   'top-up-eth-mainnet': {
     // Модуль для пополнения сети Ethereum через оффициальный мост ZkSync Era. Стоимость пополнения ~0.8$
