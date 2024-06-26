@@ -166,35 +166,53 @@ export const getUpdatedGlobalModules = (module: TransformedModuleConfig) => {
     return splittedModules;
   }
 
+  if (module.destinationNetworks?.length) {
+    const splittedModules: TransformedModuleConfig[] = [];
+
+    const { destinationNetworks, ...restModule } = module;
+
+    for (let i = 0; i < module.count; i++) {
+      const destinationNetwork = getRandomItemFromArray(destinationNetworks);
+      const updatedModule = {
+        ...restModule,
+        destinationNetwork,
+      } as TransformedModuleConfig;
+
+      splittedModules.push(updatedModule);
+    }
+
+    return splittedModules;
+  }
+
   switch (module.moduleName) {
-    case 'okx-withdraw': {
-      if (module.randomOkxWithdrawNetworks?.length) {
-        const randomOkxWithdrawNetwork = getRandomItemFromArray(module.randomOkxWithdrawNetworks);
-
-        const updatedModule = {
-          ...module,
-          okxWithdrawNetwork: randomOkxWithdrawNetwork,
-        };
-
-        return [updatedModule];
-      }
-
-      return [module];
-    }
-    case 'binance-withdraw': {
-      if (module.randomBinanceWithdrawNetworks?.length) {
-        const randomBinanceWithdrawNetwork = getRandomItemFromArray(module.randomBinanceWithdrawNetworks);
-
-        const updatedModule = {
-          ...module,
-          binanceWithdrawNetwork: randomBinanceWithdrawNetwork,
-        };
-
-        return [updatedModule];
-      }
-
-      return [module];
-    }
+    // case 'okx-withdraw': {
+    //   if (module.randomOkxWithdrawNetworks?.length) {
+    //     const randomOkxWithdrawNetwork = getRandomItemFromArray(module.randomOkxWithdrawNetworks);
+    //
+    //     const updatedModule = {
+    //       ...module,
+    //       okxWithdrawNetwork: randomOkxWithdrawNetwork,
+    //     };
+    //
+    //     return [updatedModule];
+    //   }
+    //
+    //   return [module];
+    // }
+    // case 'binance-withdraw': {
+    //   if (module.randomBinanceWithdrawNetworks?.length) {
+    //     const randomBinanceWithdrawNetwork = getRandomItemFromArray(module.randomBinanceWithdrawNetworks);
+    //
+    //     const updatedModule = {
+    //       ...module,
+    //       binanceWithdrawNetwork: randomBinanceWithdrawNetwork,
+    //     };
+    //
+    //     return [updatedModule];
+    //   }
+    //
+    //   return [module];
+    // }
 
     default:
       return;

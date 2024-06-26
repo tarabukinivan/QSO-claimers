@@ -18,6 +18,11 @@ export enum BnbTokens {
   DAI = 'DAI',
   AI = 'AI',
 }
+export enum BlastTokens {
+  ETH = 'ETH',
+  WETH = 'WETH',
+  USDB = 'USDB',
+}
 export enum AvalancheTokens {
   BNB = 'BNB',
   USDT = 'USDT',

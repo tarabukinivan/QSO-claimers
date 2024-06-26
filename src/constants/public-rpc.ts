@@ -85,6 +85,12 @@ export const PUBLIC_RPCS: RPCsRecord = {
     // 'https://mainnet.optimism.io',
     // 'https://rpc.ankr.com/optimism',
   ],
+  blast: [
+    'https://rpc.ankr.com/blast',
+    // 'https://blast.blockpi.network/v1/rpc/public',
+    // 'https://rpc.envelop.is/blast',
+    // 'https://rpc.blast.io',
+  ],
 
   // layerZero: [],
   zkSync: [

@@ -2,6 +2,7 @@ import {
   ArbitrumClient,
   AvalancheClient,
   BaseClient,
+  BlastClient,
   BscClient,
   CeloClient,
   CoreClient,
@@ -42,6 +43,8 @@ export const getClientByNetwork = (networkName: SupportedNetworks, privKey: stri
       return new AvalancheClient(decryptedPrivKey, logger);
     case Networks.OPTIMISM:
       return new OptimismClient(decryptedPrivKey, logger);
+    case Networks.BLAST:
+      return new BlastClient(decryptedPrivKey, logger);
 
     case Networks.ZKSYNC:
       return new ZkSyncClient(decryptedPrivKey, logger);

@@ -57,13 +57,13 @@ export const makeRelayBridge = async ({
   const destinationClient = getClientByNetwork(destinationNetwork, wallet.privKey, logger);
   const destinationNativeBalance = await destinationClient.getNativeBalance();
 
-  if (destinationNativeBalance.int >= minDestNativeBalance) {
+  if (minDestNativeBalance && destinationNativeBalance.int >= minDestNativeBalance) {
     return {
       status: 'passed',
       message: `Native balance of ${destinationNetwork} [${getTrimmedLogsAmount(
         destinationNativeBalance.int,
         destinationClient.chainData.nativeCurrency.symbol as Tokens
-      )}] already more than or equal ${minDestNativeBalance}`,
+      )}] already more than or equal minDestNativeBalance ${minDestNativeBalance}`,
     };
   }
   let currentNetwork = network;
@@ -106,7 +106,8 @@ export const makeRelayBridge = async ({
     }
   }
 
-  if (randomNetworks?.length) {
+  const randomNetworksLength = randomNetworks?.length || 0;
+  if (randomNetworksLength) {
     const res = await getRandomNetwork({
       wallet,
       randomNetworks,
@@ -136,6 +137,14 @@ export const makeRelayBridge = async ({
 
   const nativeBalance = await currentClient.getNativeBalance();
 
+  const logNativeBalance = getTrimmedLogsAmount(nativeBalance.int, nativeToken);
+  if (!randomNetworksLength && minNativeBalance && nativeBalance.int < minNativeBalance) {
+    return {
+      status: 'passed',
+      message: `Native balance ${logNativeBalance} in ${network} is lower than minNativeBalance ${minNativeBalance}`,
+    };
+  }
+
   const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(
     expectedBalance && expectedBalance[0] && expectedBalance[1]
       ? [expectedBalance[0] + additionalAmount, expectedBalance[1] + additionalAmount]
@@ -159,9 +168,7 @@ export const makeRelayBridge = async ({
     if (nativeBalance.int - balanceToLeftInt <= 0) {
       return {
         status: 'warning',
-        message: `Balance is ${+nativeBalance.int.toFixed(
-          6
-        )} ETH that is lower than balance to left ${balanceToLeftInt}`,
+        message: `Balance is ${logNativeBalance} that is lower than balance to left ${balanceToLeftInt}`,
       };
     }
   } else if (isTopUpByExpectedBalance) {
@@ -193,11 +200,11 @@ export const makeRelayBridge = async ({
     };
   }
 
-  const requestBody = {
+  let requestBody = {
     user: walletAddress,
     originChainId: chainData.id,
     destinationChainId: dstChainId,
-    currency: 'eth',
+    currency: nativeToken.toLowerCase(),
     recipient: walletAddress,
     amount: amountWei.toString(),
     usePermit: false,
@@ -213,25 +220,39 @@ export const makeRelayBridge = async ({
 
   const { data } = await axios.post(API_URL, requestBody, config);
 
-  let txData = data.steps[0].items[0].data;
+  let gasFee = data.fees.gas.amount;
+  let relayerFee = data.fees.relayer.amount;
+  let parsedRelayerFee = parseFloat(formatEther(relayerFee));
+  let resAmount = amountWei - (BigInt(relayerFee) * 2n + BigInt(gasFee));
 
-  let relayerFee = parseFloat(formatEther(data.fees.relayer));
-
-  while (relayerFee > maxFee) {
+  while (parsedRelayerFee > maxFee) {
     await sleep(
       90,
       {},
       logger,
-      `Current fee ${getTrimmedLogsAmount(relayerFee)} is more than ${getTrimmedLogsAmount(maxFee)}. Waiting 90s...`
+      `Current fee ${getTrimmedLogsAmount(parsedRelayerFee)} is more than ${getTrimmedLogsAmount(
+        maxFee
+      )}. Waiting 90s...`
     );
 
     const { data } = await axios.post(API_URL, requestBody, config);
 
-    txData = data.steps[0].items[0].data;
-    relayerFee = parseFloat(formatEther(data.fees.relayer));
+    gasFee = data.fees.gas.amount;
+    relayerFee = data.fees.relayer.amount;
+    parsedRelayerFee = parseFloat(formatEther(relayerFee));
+    resAmount = amountWei - (BigInt(relayerFee) * 2n + BigInt(gasFee));
   }
 
-  const logAmount = getTrimmedLogsAmount(amountInt + relayerFee, currentToken);
+  requestBody = {
+    ...requestBody,
+    amount: resAmount.toString(),
+  };
+
+  const { data: newData } = await axios.post(API_URL, requestBody, config);
+
+  const txData = newData.steps[0].items[0].data;
+
+  const logAmount = getTrimmedLogsAmount(amountInt, currentToken);
   logger.info(`Making bridge of [${logAmount}] from [${currentNetwork}] to [${destinationNetwork}].`);
 
   const feeOptions = await getGasOptions({

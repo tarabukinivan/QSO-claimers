@@ -89,7 +89,8 @@ export type Route =
   | 'polyhedra'
   | 'alt-layer'
   | 'layer-zero'
-  | 'check-balances';
+  | 'check-balances'
+  | 'blast';
 
 export type Settings = DefaultSettings;
 

@@ -19,3 +19,4 @@ export * from './zkfair';
 export * from './klay';
 export * from './gnosis';
 export * from './polygon-zkevm';
+export * from './blast';

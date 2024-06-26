@@ -26,6 +26,7 @@ export const explorerLinks: NetworksRecord = {
 
   gnosis: 'https://gnosisscan.io/',
   klay: 'https://klaytnscope.com/',
+  blast: 'https://blastscan.io',
 
   aptos: 'https://aptoscan.com/',
   starknet: '',

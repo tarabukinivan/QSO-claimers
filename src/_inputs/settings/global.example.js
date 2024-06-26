@@ -61,6 +61,7 @@ export const RPC = {
   bsc: '',
   opBNB: '',
   eth: '',
+  blast: '',
 
   polygon: '',
   arbitrum: '',

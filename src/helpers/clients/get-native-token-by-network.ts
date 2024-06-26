@@ -18,6 +18,7 @@ import {
   zora,
   gnosis,
   klaytn,
+  blast,
 } from 'viem/chains';
 
 import { Networks, SupportedNetworks } from '../../types';
@@ -46,6 +47,8 @@ export const getNativeTokenByNetwork = (networkName: SupportedNetworks) => {
       return zkFair.nativeCurrency.symbol;
     case Networks.POLYGON_ZKEVM:
       return polygonZkEvm.nativeCurrency.symbol;
+    case Networks.BLAST:
+      return blast.nativeCurrency.symbol;
 
     case Networks.BASE:
       return base.nativeCurrency.symbol;

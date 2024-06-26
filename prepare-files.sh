@@ -94,3 +94,33 @@ if [ ! -s src/_outputs/csv/checkers/layer-zero-claim.csv ]
     echo "\nCreating layer-zero-claim.csv in src/_outputs/csv/checkers/"
     touch src/_outputs/csv/checkers/layer-zero-claim.csv && echo "id,walletAddress" >> src/_outputs/csv/checkers/layer-zero-claim.csv
 fi
+
+#BLAST ===============================================================================================================
+if [ ! -s src/_inputs/csv/blast-wallets.csv ]
+  then :
+    echo "\nCreating blast-wallets.csv in src/_inputs/csv/"
+    touch src/_inputs/csv/blast-wallets.csv && echo "id,walletAddress,privKey,secondAddress,proxy" >> src/_inputs/csv/blast-wallets.csv
+fi
+if [ ! -s src/_outputs/json/blast-wallets.json ]
+  then :
+    echo "\nCreating blast-wallets.json in src/_outputs/json/"
+    touch src/_outputs/json/blast-wallets.json && echo "[]" >> src/_outputs/json/blast-wallets.json
+fi
+
+if [ ! -s src/_outputs/csv/blast-failed-wallets.csv ]
+  then :
+    echo "\nCreating blast-failed-wallets.csv in src/_outputs/csv/"
+    touch src/_outputs/csv/blast-failed-wallets.csv && echo "id,walletAddress,privKey,failReason" >> src/_outputs/csv/blast-failed-wallets.csv
+fi
+
+if [ ! -s src/_outputs/json/blast-saved-modules.json ]
+  then :
+    echo "\nCreating blast-saved-modules.json in src/_outputs/json/"
+    touch src/_outputs/json/blast-saved-modules.json && echo "[]" >> src/_outputs/json/blast-saved-modules.json
+fi
+
+if [ ! -s src/_outputs/csv/checkers/blast-claim.csv ]
+  then :
+    echo "\nCreating blast-claim.csv in src/_outputs/csv/checkers/"
+    touch src/_outputs/csv/checkers/blast-claim.csv && echo "id,walletAddress" >> src/_outputs/csv/checkers/blast-claim.csv
+fi

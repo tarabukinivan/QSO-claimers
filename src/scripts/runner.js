@@ -4,16 +4,19 @@ import { spawn } from 'child_process';
 import inquirer from 'inquirer';
 
 import { SECRET_PHRASE } from '../_inputs/settings/global.js';
+import savedBlastModules from '../_outputs/json/blast-saved-modules.json' assert { type: 'json' };
 import savedLayerZeroModules from '../_outputs/json/layer-zero-saved-modules.json' assert { type: 'json' };
 import savedPolyhedraModules from '../_outputs/json/polyhedra-saved-modules.json' assert { type: 'json' };
 
 const scripts = {
   polyhedra: 'polyhedra',
   layerZero: 'layer-zero',
+  blast: 'blast',
 };
 const aliases = {
   runPolyhedra: '1. Polyhedra',
   runLayerZero: '2. LayerZero',
+  runBlast: '3. Blast',
 
   exit: '0. Выйти',
 };
@@ -21,6 +24,7 @@ const aliases = {
 const commandAliases = {
   [aliases.runPolyhedra]: scripts.polyhedra,
   [aliases.runLayerZero]: scripts.layerZero,
+  [aliases.runBlast]: scripts.blast,
 
   [aliases.exit]: 'exit',
 };
@@ -36,6 +40,9 @@ const getStartMainCommand = async (projectName) => {
       break;
     case scripts.layerZero:
       currentSavedModulesToUse = savedLayerZeroModules;
+      break;
+    case scripts.blast:
+      currentSavedModulesToUse = savedBlastModules;
       break;
 
     default:
@@ -119,6 +126,12 @@ const getSecretPhrase = async () => {
     }
     case aliases.runLayerZero: {
       const { command, secret, projectName } = await getStartMainCommand(scripts.layerZero);
+      selectedCommand = command;
+      args = [secret, projectName, projectName];
+      break;
+    }
+    case aliases.runBlast: {
+      const { command, secret, projectName } = await getStartMainCommand(scripts.blast);
       selectedCommand = command;
       args = [secret, projectName, projectName];
       break;

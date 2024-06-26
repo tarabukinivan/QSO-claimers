@@ -18,6 +18,8 @@ export const getExplorerLinkByNetwork = (networkName: Networks) => {
       return explorerLinks.avalanche;
     case Networks.OPTIMISM:
       return explorerLinks.optimism;
+    case Networks.BLAST:
+      return explorerLinks.blast;
 
     case Networks.ZKSYNC:
       return explorerLinks.zkSync;

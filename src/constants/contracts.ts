@@ -5,6 +5,7 @@ import {
   ArbitrumTokens,
   AvalancheTokens,
   BaseTokens,
+  BlastTokens,
   BnbTokens,
   EthTokens,
   EvmTokens,
@@ -279,6 +280,23 @@ export const LINEA_TOKEN_CONTRACTS: TokenContract[] = [
   {
     name: LineaTokens.DAI,
     address: getAddress('0x4AF15ec2A0BD43Db75dd04E62FAA3B8EF36b00d5'),
+    abi: defaultTokenAbi,
+  },
+];
+export const BLAST_TOKEN_CONTRACTS: TokenContract[] = [
+  {
+    name: BlastTokens.ETH,
+    address: getAddress('0x4300000000000000000000000000000000000004'),
+    abi: defaultTokenAbi,
+  },
+  {
+    name: BlastTokens.WETH,
+    address: getAddress('0x4300000000000000000000000000000000000004'),
+    abi: defaultTokenAbi,
+  },
+  {
+    name: BlastTokens.USDB,
+    address: getAddress('0x4300000000000000000000000000000000000003'),
     abi: defaultTokenAbi,
   },
 ];

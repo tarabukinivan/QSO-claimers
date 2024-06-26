@@ -49,7 +49,7 @@ export const makeOrbiterBridge = async ({
   const destinationClient = getClientByNetwork(destinationNetwork, wallet.privKey, logger);
   const destinationNativeBalance = await destinationClient.getNativeBalance();
 
-  if (destinationNativeBalance.int >= minDestNativeBalance) {
+  if (minDestNativeBalance && destinationNativeBalance.int >= minDestNativeBalance) {
     return {
       status: 'passed',
       message: `Native balance of ${destinationNetwork} [${getTrimmedLogsAmount(
@@ -69,7 +69,8 @@ export const makeOrbiterBridge = async ({
   });
   let currentToken = token;
 
-  if (randomNetworks?.length) {
+  const randomNetworksLength = randomNetworks?.length || 0;
+  if (randomNetworksLength) {
     const res = await getRandomNetwork({
       wallet,
       randomNetworks,
@@ -97,6 +98,14 @@ export const makeOrbiterBridge = async ({
 
   const nativeBalance = await currentClient.getNativeBalance();
 
+  const logNativeBalance = getTrimmedLogsAmount(nativeBalance.int, nativeToken);
+  if (!randomNetworksLength && minNativeBalance && nativeBalance.int < minNativeBalance) {
+    return {
+      status: 'passed',
+      message: `Native balance ${logNativeBalance} in ${network} is lower than minNativeBalance ${minNativeBalance}`,
+    };
+  }
+
   const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(expectedBalance);
 
   let amountWei;
@@ -113,9 +122,7 @@ export const makeOrbiterBridge = async ({
     if (nativeBalance.int - balanceToLeftInt <= 0) {
       return {
         status: 'warning',
-        message: `Balance is ${+nativeBalance.int.toFixed(
-          6
-        )} ETH that is lower than balance to left ${balanceToLeftInt}`,
+        message: `Balance is ${logNativeBalance} ETH that is lower than balance to left ${balanceToLeftInt}`,
       };
     }
   } else if (isTopUpByExpectedBalance) {
