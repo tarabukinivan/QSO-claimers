@@ -26,7 +26,7 @@ fi
 if [ ! -s src/_inputs/csv/proxies.csv ]
   then :
     echo "\nCreating proxies.csv in src/_inputs/csv/"
-    touch src/_inputs/csv/proxies.csv && echo "proxy" >> src/_inputs/csv/proxies.csv
+    touch src/_inputs/csv/proxies.csv && echo "proxy,updateProxyLink" >> src/_inputs/csv/proxies.csv
 fi
 
 if [ ! -s src/_outputs/csv/checkers/balance-checker.csv ]
@@ -39,7 +39,7 @@ fi
 if [ ! -s src/_inputs/csv/polyhedra-wallets.csv ]
   then :
     echo "\nCreating polyhedra-wallets.csv in src/_inputs/csv/"
-    touch src/_inputs/csv/polyhedra-wallets.csv && echo "id,walletAddress,privKey,secondAddress,proxy" >> src/_inputs/csv/polyhedra-wallets.csv
+    touch src/_inputs/csv/polyhedra-wallets.csv && echo "id,walletAddress,privKey,secondAddress,proxy,updateProxyLink" >> src/_inputs/csv/polyhedra-wallets.csv
 fi
 if [ ! -s src/_outputs/json/polyhedra-wallets.json ]
   then :
@@ -69,7 +69,7 @@ fi
 if [ ! -s src/_inputs/csv/layer-zero-wallets.csv ]
   then :
     echo "\nCreating layer-zero-wallets.csv in src/_inputs/csv/"
-    touch src/_inputs/csv/layer-zero-wallets.csv && echo "id,walletAddress,privKey,secondAddress,proxy" >> src/_inputs/csv/layer-zero-wallets.csv
+    touch src/_inputs/csv/layer-zero-wallets.csv && echo "id,walletAddress,privKey,secondAddress,proxy,updateProxyLink" >> src/_inputs/csv/layer-zero-wallets.csv
 fi
 if [ ! -s src/_outputs/json/layer-zero-wallets.json ]
   then :
@@ -99,7 +99,7 @@ fi
 if [ ! -s src/_inputs/csv/blast-wallets.csv ]
   then :
     echo "\nCreating blast-wallets.csv in src/_inputs/csv/"
-    touch src/_inputs/csv/blast-wallets.csv && echo "id,walletAddress,privKey,secondAddress,proxy" >> src/_inputs/csv/blast-wallets.csv
+    touch src/_inputs/csv/blast-wallets.csv && echo "id,walletAddress,privKey,secondAddress,proxy,updateProxyLink" >> src/_inputs/csv/blast-wallets.csv
 fi
 if [ ! -s src/_outputs/json/blast-wallets.json ]
   then :
@@ -124,3 +124,4 @@ if [ ! -s src/_outputs/csv/checkers/blast-claim.csv ]
     echo "\nCreating blast-claim.csv in src/_outputs/csv/checkers/"
     touch src/_outputs/csv/checkers/blast-claim.csv && echo "id,walletAddress" >> src/_outputs/csv/checkers/blast-claim.csv
 fi
+

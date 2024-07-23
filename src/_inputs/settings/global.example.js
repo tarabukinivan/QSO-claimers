@@ -36,7 +36,7 @@ export const OKX = {
   },
 
   // Optional!
-  // Пример: login:password@ip:port
+  // Пример: http://login:pass@ip:port,
   proxy: '',
 };
 
@@ -48,7 +48,7 @@ export const BINANCE = {
     secret: '',
   },
 
-  // Пример: login:password@ip:port
+  // Пример: http://login:pass@ip:port,
   proxy: '',
 };
 
