@@ -67,7 +67,7 @@ const settings: Settings = {
   useSavedModules: true,
 
   // Использовать ли прокси при выполнении скрипта
-  useProxy: false,
+  useProxy: true,
 
   // Использовать ли более детальные проверки транзакций при выполнении модулей
   // Необходим Moralis
