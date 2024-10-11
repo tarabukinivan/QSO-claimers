@@ -13,7 +13,7 @@ const groupSettings: GroupSettings = {};
 const modules: UserModuleConfig[] = [
   // {
   //   moduleName: 'bitget-collect',
-  //   collectTokens: ['ETH'],
+  //   collectTokens: ['ETH', 'TAIKO'],
   //
   //   indexGroup: 0,
   // },
