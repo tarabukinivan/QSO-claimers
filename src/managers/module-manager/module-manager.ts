@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 
 import settings from '../../_inputs/settings/settings';
-import { NOT_SAVE_FAILED_WALLET_ERRORS, SOMETHING_WENT_WRONG, SUCCESS_MESSAGES_TO_STOP_WALLET } from '../../constants';
+import { NOT_SAVE_FAILED_WALLET_ERRORS, SOMETHING_WENT_WRONG } from '../../constants';
 import {
   createRandomProxyAgent,
   getProxyAgent,
@@ -10,11 +10,7 @@ import {
   showLogPreparedModules,
   sleepByRange,
 } from '../../helpers';
-import {
-  clearAllSavedModulesByName,
-  clearSavedWallet,
-  markSavedModulesAsError,
-} from '../../helpers/modules/save-modules';
+import { clearSavedWallet, markSavedModulesAsError } from '../../helpers/modules/save-modules';
 import { LoggerData } from '../../logger';
 import { getGlobalModule } from '../../modules';
 import {
@@ -22,24 +18,24 @@ import {
   ModuleNames,
   ProxyAgent,
   ProxyObject,
-  StopModuleOnError,
   SupportedNetworks,
   TransformedModuleConfig,
   TransformedModuleParams,
   WalletData,
 } from '../../types';
 import { sendMsgToTG } from '../telegram';
-import { getTgMessageByStatus } from '../telegram/helpers';
+import { getTgMessageByStatus, transformMdMessage } from '../telegram/helpers';
 import { IModuleManager, StartModule } from './types';
 
 let walletIndex: number = 1;
+let successCount: number = 0;
+let errorCount: number = 0;
 
 export abstract class ModuleManager {
   private wallet: WalletData;
   private modules: TransformedModuleConfig[];
   private baseNetwork: SupportedNetworks;
   private projectName: string;
-
   private walletsTotalCount: number;
   private dbSource?: DataSource;
 
@@ -68,20 +64,22 @@ export abstract class ModuleManager {
 
     let proxyObject: ProxyObject | undefined;
     let proxyAgent: ProxyAgent | undefined;
+    let currentIp: string = '';
 
     if (settings.useProxy) {
       const walletProxy = this.wallet.proxy;
       const updateProxyLink = this.wallet.updateProxyLink;
       const isWalletProxyExist = !!walletProxy;
       const walletProxyData = isWalletProxyExist ? await getProxyAgent(walletProxy, updateProxyLink, logger) : null;
-      const proxyData = walletProxyData || (await createRandomProxyAgent(updateProxyLink, logger));
+      const proxyData = walletProxyData || (await createRandomProxyAgent(logger));
 
       if (!proxyData) {
         logger.error('You do not use proxy! Fill the _inputs/csv/proxies.csv file');
       } else {
-        const { proxyAgent: proxyAgentData, ...proxyObjectData } = proxyData;
+        const { proxyAgent: proxyAgentData, currentIp: currentIpData, ...proxyObjectData } = proxyData;
         proxyAgent = proxyAgentData;
         proxyObject = proxyObjectData;
+        currentIp = currentIpData;
       }
     }
 
@@ -89,14 +87,19 @@ export abstract class ModuleManager {
 
     let errorMessage = '';
 
-    const telegramPrefixMsg = `[${walletIndex}/${this.walletsTotalCount}] [${this.wallet.id}]: ${this.wallet.walletAddress} \n`;
-    walletIndex++;
+    const telegramPrefixMsg =
+      transformMdMessage(`[${walletIndex}/${this.walletsTotalCount}] [${this.wallet.id}]: `) +
+      `[${this.wallet.walletAddress}](https://debank.com/profile/${this.wallet.walletAddress})\n`;
 
-    const modulesResult: string[] = [];
+    if (walletIndex === +this.walletsTotalCount) {
+      walletIndex = 1;
+    } else {
+      walletIndex++;
+    }
+
+    const modulesResult: { msg: string; moduleName: string; status: string }[] = [];
 
     let shouldStopReversedModule = false;
-    const modulesToStopOnErrors: StopModuleOnError[] = [];
-
     for (let moduleIndex = 0; moduleIndex < preparedModules.length; moduleIndex++) {
       const markAsErrorData = {
         wallet: this.wallet,
@@ -109,17 +112,6 @@ export abstract class ModuleManager {
       const { moduleName } = module;
       logger.setLoggerMeta({ moduleName });
 
-      if (modulesToStopOnErrors.length) {
-        const foundModuleToStop = modulesToStopOnErrors.find(({ moduleToStop }) => moduleToStop === module.moduleName);
-
-        if (foundModuleToStop) {
-          logger.warning(
-            `Stop producing current MODULE, because of error in ${foundModuleToStop.errorFrom} module and provided stopModulesOnError`,
-            logTemplate
-          );
-          continue;
-        }
-      }
       if (module.reverse && module.isReverse && shouldStopReversedModule) {
         shouldStopReversedModule = false;
         logger.warning('Stop producing current REVERSED MODULE, because of error on previous one', logTemplate);
@@ -153,7 +145,13 @@ export abstract class ModuleManager {
       const isModuleWithReverse = module.reverse && !module.isReverse;
 
       try {
-        const { status, message, tgMessage, logTemplate: moduleLogTemplate } = await currentModuleRunner(moduleParams);
+        const {
+          status,
+          message,
+          txScanUrl,
+          tgMessage,
+          logTemplate: moduleLogTemplate,
+        } = await currentModuleRunner(moduleParams);
         const messageToTg = tgMessage || message;
 
         if (status === 'passed' && module.stopWalletOnPassed) {
@@ -162,11 +160,27 @@ export abstract class ModuleManager {
           });
 
           clearSavedWallet(this.wallet, this.projectName);
+          if (tgMessage) {
+            modulesResult.push({
+              msg: getTgMessageByStatus(
+                'success',
+                moduleName,
+                tgMessage,
+                txScanUrl
+                  ? {
+                      url: txScanUrl,
+                      msg: 'Transaction',
+                    }
+                  : undefined
+              ),
+              moduleName,
+              status: 'success',
+            });
+          }
 
           break;
         }
 
-        // TODO: check it more, we should clear all wallet if stopWalletOnError is true ?
         if (status === 'passed' && isModuleWithReverse) {
           shouldStopReversedModule = false;
         }
@@ -176,45 +190,56 @@ export abstract class ModuleManager {
             shouldStopReversedModule = false;
           }
 
-          modulesResult.push(getTgMessageByStatus('success', moduleName, tgMessage));
+          modulesResult.push({
+            msg: getTgMessageByStatus(
+              'success',
+              moduleName,
+              tgMessage,
+              txScanUrl
+                ? {
+                    url: txScanUrl,
+                    msg: 'Transaction',
+                  }
+                : undefined
+            ),
+            moduleName,
+            status: 'success',
+          });
         }
 
         if (status === 'warning' || status === 'critical' || status === 'error') {
           const messageWithModuleTemplate = msgToTemplateTransform(message || SOMETHING_WENT_WRONG, {
             ...moduleLogTemplate,
-            status: 'failed',
           });
 
-          if (module.stopModulesOnError?.length) {
-            modulesToStopOnErrors.push(
-              ...module.stopModulesOnError.map((moduleToStop) => ({
-                errorFrom: module.moduleName,
-                moduleToStop,
-              }))
-            );
-          }
           if (isModuleWithReverse) {
             shouldStopReversedModule = true;
           }
 
           if (status === 'error') {
-            modulesResult.push(getTgMessageByStatus('error', moduleName, messageToTg));
-
+            modulesResult.push({
+              msg: getTgMessageByStatus('error', moduleName, messageToTg),
+              moduleName,
+              status: 'error',
+            });
             throw new Error(messageWithModuleTemplate);
           }
 
           if (status === 'warning') {
             const errorMsg = `${messageWithModuleTemplate}${
               module.stopWalletOnError
-                ? ', stop producing current wallet, because stopWalletOnError is true for current module'
+                ? ', stop producing current WALLET, because stopWalletOnError is true for current module'
                 : ''
             }`;
 
-            modulesResult.push(getTgMessageByStatus('warning', moduleName, messageToTg));
+            modulesResult.push({
+              msg: getTgMessageByStatus('warning', moduleName, tgMessage || errorMsg),
+              moduleName,
+              status: 'warning',
+            });
 
             logger.error(errorMsg, {
               ...logTemplate,
-              status: 'failed',
             });
 
             markSavedModulesAsError(markAsErrorData);
@@ -228,16 +253,20 @@ export abstract class ModuleManager {
           if (status === 'critical') {
             logger.error(`${messageWithModuleTemplate}, stop producing current WALLET`, {
               ...logTemplate,
-              status: 'failed',
             });
 
             errorMessage = message || SOMETHING_WENT_WRONG;
 
             await sendMsgToTG({
-              message: `${telegramPrefixMsg} ${getTgMessageByStatus('critical', moduleName, message)}`,
+              message: `${telegramPrefixMsg} ${getTgMessageByStatus('critical', moduleName, messageToTg)}`,
               type: 'criticalErrors',
+              logger,
             });
-            modulesResult.push(getTgMessageByStatus('error', moduleName, messageToTg));
+            modulesResult.push({
+              msg: getTgMessageByStatus('error', moduleName, messageToTg),
+              moduleName,
+              status: 'error',
+            });
 
             markSavedModulesAsError(markAsErrorData);
 
@@ -254,20 +283,24 @@ export abstract class ModuleManager {
         }
 
         if (module.stopWalletOnError) {
-          const errorMsg = `${errorMessage}, stop producing current wallet${
+          const errorMsg = `${errorMessage}, stop producing current WALLET${
             module.stopWalletOnError ? ', because stopWalletOnError is true for current module' : ''
           }`;
 
           await sendMsgToTG({
             message: `${telegramPrefixMsg} ${getTgMessageByStatus('critical', moduleName, errorMsg)}`,
             type: 'criticalErrors',
+            logger,
           });
 
-          modulesResult.push(getTgMessageByStatus('warning', moduleName, errorMsg));
+          modulesResult.push({
+            msg: getTgMessageByStatus('warning', moduleName, errorMsg),
+            moduleName,
+            status: 'warning',
+          });
 
           logger.error(errorMsg, {
             ...logTemplate,
-            status: 'failed',
           });
 
           markSavedModulesAsError(markAsErrorData);
@@ -276,30 +309,8 @@ export abstract class ModuleManager {
           break;
         }
 
-        const isSuccessMessage = SUCCESS_MESSAGES_TO_STOP_WALLET.find((error) => errorMessage.includes(error));
-        if (isSuccessMessage) {
-          clearAllSavedModulesByName({
-            moduleName,
-            wallet: this.wallet,
-            projectName: this.projectName,
-          });
-
-          // modulesResult.push(getTgMessageByStatus('success', moduleName));
-
-          logger.success(`${errorMessage}, stop producing current WALLET`, {
-            ...logTemplate,
-            status: 'succeeded',
-          });
-
-          errorMessage = '';
-
-          // Stop all modules and stop wallet
-          break;
-        }
-
         logger.error(`${errorMessage}, stop producing current ${moduleName} MODULE`, {
           ...logTemplate,
-          status: 'failed',
         });
 
         markSavedModulesAsError(markAsErrorData);
@@ -309,19 +320,80 @@ export abstract class ModuleManager {
           errorMessage = '';
         }
       } finally {
-        await sleepByRange(settings.delay.betweenModules, { ...logTemplate, status: 'in progress' }, logger);
+        if (!isModuleWithReverse) {
+          await sleepByRange(settings.delay.betweenModules, { ...logTemplate }, logger);
+        }
       }
     }
 
+    if (errorCount + successCount >= +this.walletsTotalCount) {
+      errorCount = 0;
+      successCount = 0;
+    }
+    if (modulesResult.some(({ status }) => status === 'error' || status === 'warning' || status === 'critical')) {
+      errorCount++;
+    } else {
+      successCount++;
+    }
     if (modulesResult.length) {
+      const resultArr = modulesResult
+        .reduce<any[]>((acc, cur) => {
+          const { moduleName, status } = cur;
+
+          const alredyExisted = acc.filter((cur) => cur.moduleName === moduleName && cur.status === status);
+          const alredyExistedGroup = alredyExisted.filter((cur) => !!cur.grouped);
+
+          if (alredyExistedGroup.length) {
+            return acc.map((cur) =>
+              cur.moduleName === moduleName && cur.status === status
+                ? {
+                    ...cur,
+                    grouped: cur.grouped + 1,
+                  }
+                : cur
+            );
+          }
+
+          const MAX_TO_GROUP = 25;
+          if (alredyExisted.length === MAX_TO_GROUP - 1) {
+            const result = [];
+            let alreadyAdded = false;
+
+            for (const cur of acc) {
+              if (cur.moduleName === moduleName && cur.status === status) {
+                if (alreadyAdded) {
+                  continue;
+                } else {
+                  alreadyAdded = true;
+                  result.push({
+                    ...cur,
+                    grouped: MAX_TO_GROUP,
+                  });
+                }
+              } else {
+                result.push(cur);
+              }
+            }
+
+            return result;
+          }
+
+          return [...acc, cur];
+        }, [])
+        .map(({ msg, grouped, moduleName, status }) =>
+          grouped ? getTgMessageByStatus(status, moduleName, `Count: ${grouped}`) : msg
+        );
+
+      const proxyMsg = `Proxy: ${proxyObject ? (currentIp ? currentIp.replaceAll('.', '\\.') : '❓') : '❌'}\n`;
       await sendMsgToTG({
-        message: `${telegramPrefixMsg}${modulesResult.join('\n')}`,
+        message: `\\[🟢 ${successCount} \\| ❌ ${errorCount}\\]\n${telegramPrefixMsg}${proxyMsg}\n__**Modules:**__\n${resultArr.join(
+          '\n'
+        )}`,
       });
     }
 
     logger.success(`There are no more modules for current wallet [${this.wallet.walletAddress}]. Next wallet...`, {
       ...logTemplate,
-      status: 'succeeded',
     });
 
     return errorMessage

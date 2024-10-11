@@ -96,7 +96,9 @@ export class Okx {
 
   private setOkxController() {
     if (this.proxy) {
-      const proxyObject = prepareProxy(this.proxy, this.logger);
+      const proxyObject = prepareProxy({
+        proxy: this.proxy,
+      });
       const proxyAgent = createProxyAgent(proxyObject?.url);
 
       if (proxyAgent) {
@@ -184,7 +186,7 @@ export class Okx {
     token,
     network,
     minAmount,
-  }: ExecWithdrawParams): Promise<{ id: string; amount: number }> {
+  }: ExecWithdrawParams): Promise<{ id: string; logsAmount: string }> {
     const logTemplate: LoggerData = {
       action: 'execOkxWithdraw',
     };
@@ -235,14 +237,15 @@ export class Okx {
         throw new Error('Unable to execute withdrawal');
       }
 
-      this.logger?.success(
-        `${getTrimmedLogsAmount(+amount, token)} were send. We are waiting for the withdrawal from OKX, relax...`,
-        {
-          ...logTemplate,
-        }
-      );
+      const logsAmount = getTrimmedLogsAmount(+amount, token);
+      this.logger?.success(`${logsAmount} were send. We are waiting for the withdrawal from OKX, relax...`, {
+        ...logTemplate,
+      });
 
-      return { id: res.id, amount: +amount };
+      return {
+        id: res.id,
+        logsAmount,
+      };
     } catch (e) {
       const errorMessage = (e as Error)?.message ?? 'unknown error';
 
@@ -329,13 +332,12 @@ export class Okx {
         type: '2',
         subAcct: subAccName,
       };
-
       const config = await this.getConfig({ requestPath, method: 'POST', body: JSON.stringify(body) });
       const response = await axios.post(`${OKX_DOMAIN}${requestPath}`, body, config);
 
       const data = response.data.data;
       if (!data.length) {
-        throw new Error(`Unable to transfer ${symbol} balance successfully: ${response.data.msg}`);
+        throw new Error(response.data.msg);
       }
       const { amt } = data[0];
 
@@ -343,18 +345,23 @@ export class Okx {
         `${getTrimmedLogsAmount(+amt, symbol as Tokens)} has been sent from sub-account [${subAccName}] to main account`
       );
     } catch (error) {
-      this.logger?.error(`Unable to transfer ${symbol}: ${this.getTransferErrorMessage(error)}`);
+      const msg = this.getTransferErrorMessage(error);
+      if (msg) {
+        this.logger?.error(`Unable to transfer from sub acc ${symbol}: ${msg}`);
+      }
     }
   }
-  private async transferBalanceFromTradingToFunding({ symbol, amount }: TransferBalance) {
+  private async transferBalanceFromTradingToFunding({ symbol, amount, subAccName }: TransferBalance) {
     try {
       const requestPath = '/api/v5/asset/transfer';
+
       const body = {
         ccy: symbol,
         amt: amount,
         from: TRADING_ACCOUNT,
         to: FUNDING_ACCOUNT,
-        type: '0',
+        type: subAccName ? '2' : '0',
+        ...(!!subAccName && { subAcct: subAccName }),
       };
 
       const config = await this.getConfig({ requestPath, method: 'POST', body: JSON.stringify(body) });
@@ -362,15 +369,20 @@ export class Okx {
 
       const data = response.data.data;
       if (!data.length) {
-        throw new Error(`Unable to transfer ${symbol} balance successfully: ${response.data.msg}`);
+        throw new Error(response.data.msg);
       }
       const { amt } = data[0];
 
       this.logger?.success(
-        `${getTrimmedLogsAmount(+amt, symbol as Tokens)} has been sent from trading account to main account`
+        `${getTrimmedLogsAmount(+amt, symbol as Tokens)} has been sent from trading${
+          subAccName ? ` subacc ${subAccName}` : ''
+        } account to main account`
       );
     } catch (error) {
-      this.logger?.error(`Unable to transfer ${symbol}: ${this.getTransferErrorMessage(error)}`);
+      const msg = this.getTransferErrorMessage(error);
+      if (msg) {
+        this.logger?.error(`Unable to transfer from trading acc ${symbol}: ${msg}`);
+      }
     }
   }
   private async transferBalanceToAnotherAcc({ symbol, amount, email }: TransferBalanceToAnotherAcc) {
@@ -390,14 +402,17 @@ export class Okx {
 
       const data = response.data.data;
       if (!data.length) {
-        throw new Error(`Unable to transfer ${symbol} balance successfully: ${response.data.msg}`);
+        throw new Error(response.data.msg);
       }
       const { amt } = data[0];
       this.logger?.success(
         `${getTrimmedLogsAmount(+amt, symbol as Tokens)} has been sent from current account to collect account`
       );
     } catch (error) {
-      this.logger?.error(`Unable to transfer ${symbol}: ${this.getTransferErrorMessage(error)}`);
+      const msg = this.getTransferErrorMessage(error);
+      if (msg) {
+        this.logger?.error(`Unable to transfer to another acc ${symbol}: ${msg}`);
+      }
     }
   }
 
@@ -409,13 +424,22 @@ export class Okx {
 
     return response.data.data;
   }
+  private async getTradingSubAccountBalances(subAccName: string) {
+    const requestPath = `/api/v5/account/subaccount/balances?subAcct=${subAccName}`;
+
+    const config = await this.getConfig({ requestPath });
+    const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
+
+    return response.data.data?.map(({ details }: any) => details)?.flat() || [];
+  }
   async getMainAccountBalanceByToken(tokenName: string = 'ETH') {
     const requestPath = `/api/v5/asset/balances?ccy=${tokenName}`;
 
     const config = await this.getConfig({ requestPath });
     const response = await axios.get(`${OKX_DOMAIN}${requestPath}`, config);
 
-    return response.data.data;
+    const balance = response.data?.data?.[0];
+    return balance?.bal ? +balance.bal : 0;
   }
   async getMainAccountBalances() {
     const requestPath = '/api/v5/asset/balances';
@@ -476,34 +500,62 @@ export class Okx {
       throw new Error('We can not get sub accounts from OKX');
     }
     if (subAccounts.data.length === 0) {
+      // TODO: remove
+      this.logger?.warning('No subaccounts found');
       return;
     }
 
-    for (const { label: subAccName } of subAccounts.data) {
+    for (const { label: subAccName, subAcct } of subAccounts.data) {
       try {
-        const balances = await this.getSubAccountBalances(subAccName);
+        // TODO: remove
+        this.logger?.info(`Processing subacc with name=${subAcct} and label=${subAccName}`);
+        const balances = await this.getSubAccountBalances(subAcct);
+        const tradingBalances = await this.getTradingSubAccountBalances(subAcct);
 
-        if (!balances.length) {
-          this.logger?.info(`Balance of ${subAccName} account is empty`);
+        if (!balances.length && !tradingBalances.length) {
+          // TODO: remove
+          this.logger?.warning(`No balances of ${subAcct} found`);
+          // this.logger?.info(`Balance of ${subAccName} account is empty`);
 
           continue;
         }
 
-        this.logger?.info(
-          `Balance of [${subAccName}]: ${balances.map(
-            ({ availBal, ccy }: any) => `${getTrimmedLogsAmount(+availBal, ccy as Tokens)}`
-          )}`
-        );
+        if (tradingBalances.length) {
+          this.logger?.info(
+            `Trading balance of [${subAccName}]: ${tradingBalances.map(
+              ({ availBal, ccy }: any) => `${getTrimmedLogsAmount(+availBal, ccy as Tokens)}`
+            )}`
+          );
 
-        for (const { availBal, ccy } of balances) {
-          if ((!tokens?.length || tokens.includes(ccy)) && availBal > 0) {
-            await this.transferBalanceFromSubToMain({ amount: availBal, subAccName, symbol: ccy });
+          for (const { availBal, ccy } of tradingBalances) {
+            if ((!tokens?.length || tokens.includes(ccy)) && +availBal > 0) {
+              await this.transferBalanceFromTradingToFunding({ amount: availBal, subAccName: subAcct, symbol: ccy });
 
-            await sleep(1);
+              await sleep(0.1);
+            }
+          }
+        }
+
+        if (balances.length) {
+          this.logger?.info(
+            `Balance of [${subAccName}]: ${balances.map(
+              ({ availBal, ccy }: any) => `${getTrimmedLogsAmount(+availBal, ccy as Tokens)}`
+            )}`
+          );
+
+          for (const { availBal, ccy } of balances) {
+            if ((!tokens?.length || tokens.includes(ccy)) && +availBal > 0) {
+              await this.transferBalanceFromSubToMain({ amount: availBal, subAccName: subAcct, symbol: ccy });
+
+              await sleep(0.1);
+            }
           }
         }
       } catch (error) {
-        this.logger?.error(this.getTransferErrorMessage(error));
+        const msg = this.getTransferErrorMessage(error);
+        if (msg) {
+          this.logger?.error(msg);
+        }
       }
     }
   }
@@ -512,7 +564,7 @@ export class Okx {
       const balances = await this.getTradingAccountBalances();
 
       if (!balances.length) {
-        this.logger?.info('Balance of trading account is empty');
+        // this.logger?.info('Balance of trading account is empty');
 
         return;
       }
@@ -524,14 +576,17 @@ export class Okx {
       );
 
       for (const { availBal, ccy } of balances) {
-        if ((!tokens?.length || tokens.includes(ccy)) && availBal > 0) {
+        if ((!tokens?.length || tokens.includes(ccy)) && +availBal > 0) {
           await this.transferBalanceFromTradingToFunding({ amount: availBal, symbol: ccy });
 
-          await sleep(1);
+          await sleep(0.1);
         }
       }
     } catch (error) {
-      this.logger?.error(this.getTransferErrorMessage(error));
+      const msg = this.getTransferErrorMessage(error);
+      if (msg) {
+        this.logger?.error(msg);
+      }
     }
   }
   async transferToAnotherAcc(email: string, tokens?: Tokens[]) {
@@ -539,23 +594,26 @@ export class Okx {
       const balances = await this.getMainAccountBalances();
 
       if (!balances.length) {
-        this.logger?.info('Balance of main account is empty');
+        // this.logger?.info('Balance of main account is empty');
 
         return;
       }
 
       for (const { availBal, ccy } of balances) {
-        if ((!tokens?.length || tokens.includes(ccy)) && availBal > 0) {
+        if ((!tokens?.length || tokens.includes(ccy)) && +availBal > 0) {
           await this.transferBalanceToAnotherAcc({ email, amount: availBal, symbol: ccy });
 
-          await sleep(1);
+          await sleep(0.1);
         }
       }
     } catch (error) {
-      this.logger?.error(this.getTransferErrorMessage(error));
+      const msg = this.getTransferErrorMessage(error);
+      if (msg) {
+        this.logger?.error(msg);
+      }
     }
   }
-  private getTransferErrorMessage(error: unknown) {
+  private getTransferErrorMessage(error: unknown): string | null {
     let errMsg = '';
 
     if (error instanceof AxiosError) {
@@ -567,9 +625,11 @@ export class Okx {
       errMsg = err.message;
     }
 
-    if (errMsg.includes('Parameter amt error')) {
-      errMsg = 'Withdrawal amount is lower than the lower limit';
+    if (errMsg.includes('Parameter amt error') || errMsg.includes('Withdrawal amount is lower than the lower limit')) {
+      // errMsg = 'Withdrawal amount is lower than the lower limit';
+      return '';
     }
+
     return errMsg;
   }
 }

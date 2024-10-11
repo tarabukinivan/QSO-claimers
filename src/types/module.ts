@@ -10,6 +10,7 @@ import { AvailableRemainSwapTokens, AvailableSwapTokens, Tokens } from './tokens
 
 export type WorkerResponse = Pick<TransactionCallbackResponse, 'status' | 'message' | 'tgMessage'> & {
   logTemplate: LoggerData;
+  txScanUrl?: string;
 };
 
 export type FindModuleReturnFc = (params: TransformedModuleParams) => Promise<WorkerResponse>;
@@ -18,6 +19,11 @@ export type ModuleNames =
   | 'binance-withdraw'
   | 'okx-withdraw'
   | 'okx-collect'
+  | 'okx-wait-balance'
+  | 'bitget-collect'
+  | 'bitget-deposit'
+  | 'bitget-withdraw'
+  | 'bitget-wait-balance'
   | 'top-up-eth-mainnet'
   | 'transfer-token'
   | 'balance-checker'
@@ -35,7 +41,10 @@ export type ModuleNames =
   | 'polyhedra-transfer-claim'
   | 'layer-zero-claim'
   | 'layer-zero-check-claim'
-  | 'layer-zero-transfer-claim';
+  | 'layer-zero-transfer-claim'
+  | 'taiko-claim'
+  | 'taiko-check-claim'
+  | 'taiko-transfer-claim';
 
 export type SwapModuleNames = Extract<
   ModuleNames,
@@ -112,6 +121,7 @@ export interface ExtraModuleParams {
   minNativeBalance?: number;
   addDonationAmount?: boolean;
   minDestTokenBalance?: number;
+  minDestTokenNetwork?: SupportedNetworks;
   minDestNativeBalance?: number;
   balanceToLeft?: NumberRange;
 
@@ -159,6 +169,7 @@ export type TransformedModuleParams = Omit<ModuleParams, 'count'> & {
   isReverse?: boolean;
   logger: LoggerType;
   wallet: WalletData;
+  isInnerWorker?: boolean;
 
   baseNetwork: SupportedNetworks;
   projectName: string;

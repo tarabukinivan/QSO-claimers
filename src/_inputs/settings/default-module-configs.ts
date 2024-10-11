@@ -113,6 +113,42 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     // Сеть для которой выполнять модуль
     network: 'bsc',
   },
+  // ============== taiko ==============
+  'taiko-check-claim': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    // Сеть для которой выполнять модуль eth | bsc
+    network: 'taiko',
+  },
+  'taiko-claim': {
+    count: [1, 1],
+    indexGroup: 1,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    // Сеть для которой выполнять модуль
+    network: 'taiko',
+
+    tokenToSupply: 'ETH',
+  },
+  'taiko-transfer-claim': {
+    count: [1, 1],
+    indexGroup: 2,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: true,
+
+    minAndMaxAmount: [100, 100],
+    usePercentBalance: true,
+
+    // Сеть для которой выполнять модуль
+    network: 'taiko',
+  },
   // ============== General ==============
   'balance-checker': {
     count: [1, 1],
@@ -188,16 +224,6 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     // Это значение не трогайте!
     network: 'zkSync',
   },
-  'okx-collect': {
-    count: [1, 1],
-    indexGroup: 0,
-
-    // Аккаунты для которых будет выполняться модуль
-    // Формат: ['accountName1', 'accountName2', ...]
-    // Названия должны соответствовать таковым в global.js, в противном случае они будут проигнорированы
-    // Так-же можно указать 'all' и тогда модуль выполнится для всех аккаунтов в global.js
-    okxAccounts: 'all',
-  },
   // ============== Withdraws ==============
   'binance-withdraw': {
     count: [1, 1],
@@ -234,6 +260,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
 
     // Сеть из которой нужно делать вывод с OKX. eth | optimism | polygon | zkSync
     okxWithdrawNetwork: 'optimism',
+
     // При указании данного поля сеть для вывода будет выбрана рандомно из списка
     // Работает только, если useUsd = true
     // randomOkxWithdrawNetworks: ['optimism', 'polygon', 'arbitrum'],
@@ -242,10 +269,11 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     tokenToWithdraw: 'ETH',
 
     // Сумма в диапазоне ОТ и ДО, которая будет выведена с OKX в токене, который указан в tokenToWithdraw
-    minAndMaxAmount: [0, 0],
+    minAndMaxAmount: [1.1, 1.2],
 
     // Если баланс токена в tokenToWithdraw будет ниже этого значения, только тогда будет авто-пополнение
-    minTokenBalance: 1,
+    // При использовании randomOkxWithdrawNetworks, модуль будет пропущен, если в одной из выбранных сетей баланс выше данного значения
+    minTokenBalance: 0.0003,
 
     // Модуль будет выполнен, только, если высчитанный amount вместе с fee будет больше указанного значение
     minAmount: 0,
@@ -255,6 +283,95 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
 
     // Использовать ли USD как значения балансов, amount
     useUsd: false,
+  },
+  'bitget-withdraw': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    // Сеть из которой нужно делать вывод с Bitget. eth | bsc | optimism | polygon | arbitrum
+    network: 'bsc',
+
+    // Токен, который будет выведен. USDC | USDT | BNB | ETH
+    tokenToWithdraw: 'ETH',
+
+    minAndMaxAmount: [31, 33],
+    usePercentBalance: false,
+
+    // Минимальное кол-во токена, при котором будет выполнен withdraw
+    minTokenBalance: 25,
+
+    // minAmount: 25,
+
+    waitTime: 60,
+  },
+  'okx-collect': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    // Аккаунты для которых будет выполняться модуль
+    // Формат: ['accountName1', 'accountName2', ...]
+    // Названия должны соответствовать таковым в global.js, в противном случае они будут проигнорированы
+    // Так-же можно указать 'all' и тогда модуль выполнится для всех аккаунтов в global.js
+    okxAccounts: 'all',
+
+    // Будет собирать только указанные токены
+    // Если оставить пустым [], то попробует собрать все возможные токены
+    collectTokens: ['BNB', 'ETH', 'USDT', 'USDC', 'DAI'],
+  },
+  'okx-wait-balance': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    // Минимальный баланс токенов для ожидания
+    waitBalance: 1,
+
+    // Токены баланс которых будет ожидать
+    collectTokens: ['ETH'],
+
+    // Время в секундах, которое будет ожидать между проверками баланса
+    waitTime: 60 * 5, // 5m
+
+    // Аккаунты для которых будет выполняться модуль
+    // Формат: ['accountName1', 'accountName2', ...]
+    // Названия должны соответствовать таковым в global.js, в противном случае они будут проигнорированы
+    // Так-же можно указать 'all' и тогда модуль выполнится для всех аккаунтов в global.js
+    okxAccounts: 'all',
+  },
+  'bitget-deposit': {
+    count: [1, 1],
+    indexGroup: 1,
+
+    // Сеть из которой нужно делать депозит в Bitget. eth | bsc | optimism | polygon | arbitrum
+    network: 'bsc',
+
+    // Токен, который будет выведен. USDC | USDT | BNB | ETH
+    tokenToSupply: 'ETH',
+
+    minAndMaxAmount: [100, 100],
+    usePercentBalance: true,
+
+    // Выполнит депозит, только, если баланс выше указанного значения
+    minTokenBalance: 10,
+  },
+  'bitget-collect': {
+    count: [1, 1],
+    indexGroup: 2,
+
+    // Токены, которые будет собраны. USDC | USDT | BNB | ETH
+    collectTokens: [],
+  },
+  'bitget-wait-balance': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    // Минимальный баланс токенов для ожидания
+    waitBalance: 30,
+
+    // Токены баланс которых будет ожидать
+    collectTokens: ['USDT', 'USDC'],
+
+    // Время в секундах, которое будет ожидать между проверками баланса
+    waitTime: 60 * 10, // 10m
   },
   // ============== Bridges ==============
   'relay-bridge': {

@@ -3,6 +3,8 @@ import { Networks } from '../../types';
 
 export const getExplorerLinkByNetwork = (networkName: Networks) => {
   switch (networkName) {
+    case Networks.TAIKO:
+      return explorerLinks.taiko;
     case Networks.BSC:
       return explorerLinks.bsc;
     case Networks.OP_BNB:

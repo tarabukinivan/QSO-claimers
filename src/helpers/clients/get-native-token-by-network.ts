@@ -19,12 +19,15 @@ import {
   gnosis,
   klaytn,
   blast,
+  taiko,
 } from 'viem/chains';
 
 import { Networks, SupportedNetworks } from '../../types';
 
 export const getNativeTokenByNetwork = (networkName: SupportedNetworks) => {
   switch (networkName) {
+    case Networks.TAIKO:
+      return taiko.nativeCurrency.symbol;
     case Networks.BSC:
       return bsc.nativeCurrency.symbol;
     case Networks.OP_BNB:

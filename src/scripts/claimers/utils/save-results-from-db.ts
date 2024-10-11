@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { CHECKERS_FOLDER } from '../../../constants';
 import { convertToCsvAndWrite, DataForCsv } from '../../../helpers';
 import { WalletData, WalletWithModules } from '../../../types';
-import { LayerZeroClaimEntity, PolyhedraClaimEntity } from '../db/entities';
+import { LayerZeroClaimEntity, PolyhedraClaimEntity, TaikoClaimEntity } from '../db/entities';
 
 interface SaveResultsFromDb {
   projectName: string;
@@ -32,6 +32,9 @@ export const saveResultsFromDb = async ({ dbSource, projectName, walletsWithModu
   switch (projectName) {
     case 'layer-zero':
       projectEntity = LayerZeroClaimEntity;
+      break;
+    case 'taiko':
+      projectEntity = TaikoClaimEntity;
       break;
 
     default:

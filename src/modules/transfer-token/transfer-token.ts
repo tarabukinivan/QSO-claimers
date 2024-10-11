@@ -7,12 +7,13 @@ import {
   calculateAmount,
   decimalToInt,
   getCurrentBalanceByContract,
-  getCurrentSymbolByContract,
   getGasOptions,
+  getRandomNetwork,
   getRandomNumber,
   getTrimmedLogsAmount,
   intToDecimal,
   TransactionCallbackParams,
+  TransactionCallbackResponse,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../helpers';
@@ -32,28 +33,78 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     minTokenBalance,
     balanceToLeft,
     minAmount,
+    randomNetworks,
+    useUsd,
+    nativePrices,
   } = params;
-  const { walletClient, explorerLink, publicClient } = client;
-  const { secondAddress } = wallet;
+  const { transferAddress } = wallet;
 
-  if (!secondAddress) {
+  if (!transferAddress) {
     return {
-      status: 'error',
+      status: 'critical',
       message: SECOND_ADDRESS_EMPTY_ERROR,
     };
   }
 
-  logger.info(`Transfer tokens to secondAddress [${secondAddress}]`);
+  logger.info(`Transfer tokens to transferAddress [${transferAddress}]`);
+
+  let currentNetwork = network;
+  let currentClient = client;
+
+  const isNativeContract = contractAddress === 'native';
+  const contractInfo = isNativeContract
+    ? undefined
+    : {
+      name: contractAddress,
+      address: contractAddress,
+      abi: defaultTokenAbi,
+    };
+  const srcTokenSymbol = await currentClient.getNativeOrContractSymbol(isNativeContract, contractInfo);
+
+  let currentToken = srcTokenSymbol as Tokens;
+
+  const randomNetworksLength = randomNetworks?.length || 0;
+  if (randomNetworksLength) {
+    const res = await getRandomNetwork({
+      wallet,
+      randomNetworks,
+      logger,
+      useUsd,
+      nativePrices,
+      tokenContractInfo: contractInfo,
+      minTokenBalance,
+      client: currentClient,
+      network: currentNetwork,
+      token: currentToken as Tokens,
+      isNativeToken: isNativeContract,
+      isWithdrawal: false,
+    });
+
+    if ('status' in res) {
+      return res as TransactionCallbackResponse;
+    }
+    currentClient = res.client;
+    currentNetwork = res.network;
+    currentToken = res.token;
+  }
+
+  const { walletClient, explorerLink, publicClient, walletAddress } = currentClient;
 
   const {
     wei: weiBalance,
     int: intBalance,
     decimals,
-    isNativeContract,
-  } = await getCurrentBalanceByContract({ client, contractAddress });
+  } = await getCurrentBalanceByContract({ client: currentClient, contractAddress });
 
-  const { symbol } = await getCurrentSymbolByContract({ client, contractAddress });
-  const tokenSymbol = symbol as Tokens;
+  if (intBalance < minTokenBalance) {
+    return {
+      status: 'passed',
+      message: `Balance ${getTrimmedLogsAmount(
+        intBalance,
+        currentToken
+      )} in ${currentNetwork} is lower than minTokenBalance ${minTokenBalance}`,
+    };
+  }
 
   let amount = calculateAmount({
     balance: weiBalance,
@@ -62,16 +113,6 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     decimals,
     isBigInt: true,
   });
-
-  if (intBalance < minTokenBalance) {
-    return {
-      status: 'passed',
-      message: `Balance ${getTrimmedLogsAmount(
-        intBalance,
-        tokenSymbol
-      )}} in ${network} is lower than minTokenBalance ${minTokenBalance}`,
-    };
-  }
 
   if (balanceToLeft && balanceToLeft[0] && balanceToLeft[1]) {
     const balanceToLeftInt = getRandomNumber(balanceToLeft);
@@ -88,8 +129,8 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
         status: 'warning',
         message: `Balance is ${getTrimmedLogsAmount(
           intBalance,
-          tokenSymbol
-        )}  that is lower than balance to left ${getTrimmedLogsAmount(balanceToLeftInt, tokenSymbol)}`,
+          currentToken
+        )}  that is lower than balance to left ${getTrimmedLogsAmount(balanceToLeftInt, currentToken)}`,
       };
     }
   }
@@ -99,7 +140,7 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
       amount,
       decimals,
     }),
-    tokenSymbol
+    currentToken
   )}`;
 
   if (minAmount && amount < minAmount) {
@@ -114,18 +155,18 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
   const feeOptions = await getGasOptions({
     gweiRange,
     gasLimitRange,
-    network,
+    network: currentNetwork,
     publicClient,
   });
 
-  const transferMsg = `Transferring [${logCalculatedAmount}] in ${network} to [${secondAddress}]...`;
+  const transferMsg = `Transferring [${logCalculatedAmount}] in ${currentNetwork} to [${transferAddress}]...`;
   if (isNativeContract) {
     const gasPrice = await publicClient.getGasPrice();
 
     const reversedFee = getRandomNumber([20, 25]);
     const gasLimit = await publicClient.estimateGas({
-      account: client.walletAddress,
-      to: secondAddress as Hex,
+      account: walletAddress,
+      to: transferAddress as Hex,
       value: amount,
       data: '0x',
       ...feeOptions,
@@ -134,25 +175,26 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
     const fee = gasPrice * gasLimit;
 
     const feeWithPercent = BigInt(+addNumberPercentage(Number(fee), reversedFee).toFixed(0));
-    const value = amount - feeWithPercent;
+    let value = amount - feeWithPercent;
 
     if (value <= 0n) {
-      return {
-        status: 'passed',
-        message: `Fee of transaction [${getTrimmedLogsAmount(
-          decimalToInt({
-            amount: feeWithPercent,
-            decimals,
-          }),
-          tokenSymbol
-        )}] is bigger than current balance [${getTrimmedLogsAmount(intBalance, tokenSymbol)}]`,
-      };
+      value = amount;
+      // return {
+      //   status: 'passed',
+      //   message: `Fee of transaction [${getTrimmedLogsAmount(
+      //     decimalToInt({
+      //       amount: feeWithPercent,
+      //       decimals,
+      //     }),
+      //     tokenSymbol
+      //   )}] is bigger than current balance [${getTrimmedLogsAmount(intBalance, tokenSymbol)}]`,
+      // };
     }
 
     logger.info(transferMsg);
 
     txHash = await walletClient.sendTransaction({
-      to: secondAddress as Hex,
+      to: transferAddress as Hex,
       value,
       data: '0x',
       ...feeOptions,
@@ -164,18 +206,18 @@ export const makeTransferToken = async (params: TransactionCallbackParams): Tran
       address: contractAddress as Hex,
       abi: defaultTokenAbi,
       functionName: 'transfer',
-      args: [secondAddress as Hex, amount],
+      args: [transferAddress as Hex, amount],
       ...feeOptions,
     });
   }
 
-  await client.waitTxReceipt(txHash);
+  await currentClient.waitTxReceipt(txHash);
 
   return {
     txHash,
     explorerLink,
-    tgMessage: `Sent ${logCalculatedAmount} to ${secondAddress}`,
     status: 'success',
+    tgMessage: `Transferred ${logCalculatedAmount} in ${currentNetwork} to ${transferAddress}...`,
   };
 };
 

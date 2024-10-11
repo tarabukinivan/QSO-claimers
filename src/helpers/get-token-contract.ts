@@ -8,6 +8,7 @@ import {
   OPTIMISM_TOKEN_CONTRACTS,
   POLYGON_TOKEN_CONTRACTS,
   SCROLL_TOKEN_CONTRACTS,
+  TAIKO_TOKEN_CONTRACTS,
   ZKSYNC_TOKEN_CONTRACTS,
   ZORA_TOKEN_CONTRACTS,
 } from '../constants';
@@ -36,6 +37,8 @@ export const getTokenContract = ({ contracts, tokenName, network }: GetTokenCont
 
 export const getContractsByNetwork = (network: SupportedNetworks) => {
   switch (network) {
+    case Networks.TAIKO:
+      return TAIKO_TOKEN_CONTRACTS;
     case Networks.ETH:
       return ETH_TOKEN_CONTRACTS;
     case Networks.BSC:

@@ -1,3 +1,8 @@
+// Секретная фраза, которая будет использоваться для шифрования ваших приватных данных
+// Эта же фраза будет использоваться и для их расшифровки по этому не удаляйте её!
+// Пример: 'abracadabra209581kdhask'
+export const SECRET_PHRASE = 'abracadabra';
+
 // Приватные данные от OKX для авто-пополнения
 export const OKX = {
   // Имя аккаунта, который будет использоваться в скриптах
@@ -40,6 +45,16 @@ export const OKX = {
   proxy: '',
 };
 
+// Приватные данные от Bitget
+export const BITGET = {
+  apiKey: '',
+  secret: '',
+  passphrase: '',
+
+  // Пример: http://login:pass@ip:port
+  proxy: '',
+};
+
 // Приватные данные от Binance для авто-пополнения
 export const BINANCE = {
   // Создать можно тут -> https://www.binance.com/en/binance-api
@@ -58,6 +73,7 @@ export const INCH_KEY = '';
 
 // Ваша приватная RPC (не обязательно)
 export const RPC = {
+  taiko: '',
   bsc: '',
   opBNB: '',
   eth: '',
@@ -87,11 +103,6 @@ export const RPC = {
   aptos: '',
   starknet: '',
 };
-
-// Секретная фраза, которая будет использоваться для шифрования ваших приватных данных
-// Эта же фраза будет использоваться и для их расшифровки по этому не удаляйте её!
-// Пример: 'abracadabra209581kdhask'
-export const SECRET_PHRASE = 'abracadabra';
 
 // Приватные данные для экстренных telegram уведомлений
 export const TELEGRAM = {

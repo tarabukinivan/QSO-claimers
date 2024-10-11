@@ -13,6 +13,7 @@ import {
   OptimismTokens,
   PolygonTokens,
   ScrollTokens,
+  TaikoTokens,
   TokenContract,
   ZkSyncTokens,
   ZoraTokens,
@@ -70,6 +71,39 @@ export const BNB_TOKEN_CONTRACTS: TokenContract[] = [
     abi: defaultTokenAbi,
   },
 ];
+export const TAIKO_TOKEN_CONTRACTS: TokenContract[] = [
+  {
+    name: TaikoTokens.ETH,
+    address: getAddress('0xA51894664A773981C6C112C43ce576f315d5b1B6'),
+    abi: defaultTokenAbi,
+  },
+  {
+    name: TaikoTokens.WETH,
+    address: getAddress('0xA51894664A773981C6C112C43ce576f315d5b1B6'),
+    abi: defaultTokenAbi,
+  },
+  {
+    name: TaikoTokens.USDC,
+    address: getAddress('0x07d83526730c7438048D55A4fc0b850e2aaB6f0b'),
+    abi: defaultTokenAbi,
+  },
+  {
+    name: TaikoTokens.USDT,
+    address: getAddress('0x2DEF195713CF4a606B49D07E520e22C17899a736'),
+    abi: defaultTokenAbi,
+  },
+  {
+    name: TaikoTokens['USDC.e'],
+    address: getAddress('0x19e26B0638bf63aa9fa4d14c6baF8D52eBE86C5C'),
+    abi: defaultTokenAbi,
+  },
+  {
+    name: TaikoTokens.TAIKO,
+    address: getAddress('0xA9d23408b9bA935c230493c40C73824Df71A0975'),
+    abi: defaultTokenAbi,
+  },
+];
+
 export const AVALANCHE_TOKEN_CONTRACTS: TokenContract[] = [
   {
     name: AvalancheTokens.USDC,

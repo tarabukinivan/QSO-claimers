@@ -18,7 +18,6 @@ export interface OkxRandom {
 export interface OkxGlobal {
   accountName: string;
   collectAccountEmail: string;
-  collectAccountName: string;
   proxy: string;
   accounts: {
     [key: string]: OkxApiSecrets;
@@ -36,6 +35,7 @@ export interface OkxConstructor {
 export interface TransferBalance {
   symbol: string;
   amount: number;
+  subAccName?: string;
 }
 export interface TransferBalanceFromSubToMain extends TransferBalance {
   subAccName: string;

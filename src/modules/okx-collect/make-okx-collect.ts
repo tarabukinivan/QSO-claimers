@@ -19,7 +19,7 @@ interface OkxAccount extends OkxApiSecrets {
   name: string;
 }
 const makeOkxCollect = async (props: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { logger, okxAccounts, collectTokens } = props;
+  const { logger, okxAccounts = 'all', collectTokens } = props;
 
   const allOkxAccounts = Object.entries(OKX.accounts).reduce<OkxAccount[]>((acc, [name, settings]) => {
     if (!!settings.secret && !!settings.apiKey && !!settings.password) {

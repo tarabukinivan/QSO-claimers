@@ -4,10 +4,13 @@ import {
   execMakeCheckClaimPolyhedra,
   execMakeClaimLayerZero,
   execMakeClaimPolyhedra,
+  execMakeClaimTaiko,
   execMakeTransferClaimLayerZero,
   execMakeTransferClaimPolyhedra,
+  execMakeTransferClaimTaiko,
 } from '../../modules';
 import { execMakeCheckClaimLayerZero } from '../../modules/layer-zero/make-check-claim';
+import { execMakeCheckClaimTaiko } from '../../modules/taiko/make-check-claim';
 
 export class ModuleManager extends DefaultModuleManager {
   constructor(args: IModuleManager) {
@@ -29,6 +32,13 @@ export class ModuleManager extends DefaultModuleManager {
         return execMakeClaimLayerZero;
       case 'layer-zero-transfer-claim':
         return execMakeTransferClaimLayerZero;
+
+      case 'taiko-claim':
+        return execMakeClaimTaiko;
+      case 'taiko-check-claim':
+        return execMakeCheckClaimTaiko;
+      case 'taiko-transfer-claim':
+        return execMakeTransferClaimTaiko;
 
       default:
         return;

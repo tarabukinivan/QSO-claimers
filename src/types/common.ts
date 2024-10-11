@@ -2,6 +2,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 
 import { TransformedModuleConfig } from './module';
+import { Tokens } from './tokens';
 
 export type NumberString = `${number}`;
 export type NumberRange = [number, number];
@@ -15,15 +16,16 @@ export interface WalletData {
   privKey: string;
   walletAddress: string;
   id: string;
-  secondAddress?: string;
+  transferAddress?: string;
+  bitgetAddress?: string;
+  updateProxyLink?: string;
   proxy?: string;
   index?: number;
-  updateProxyLink?: string;
 }
 
 export interface JsonProxyObject {
   proxy: string;
-  proxy_type: string;
+  updateProxyLink?: string;
 }
 
 export interface WalletWithModules {
@@ -40,6 +42,7 @@ export interface SavedModules {
 export type ProxyAgent = SocksProxyAgent | HttpsProxyAgent<string>;
 export type PreparedProxyData = {
   url: string;
+  updateProxyLink?: string;
 } & ProxyObject;
 export type OptionalPreparedProxyData = PreparedProxyData | undefined;
 export type ProxyObject = {
@@ -52,6 +55,7 @@ export type ProxyObject = {
 export type OptionalProxyObject =
   | (ProxyObject & {
       proxyAgent: ProxyAgent;
+      currentIp: string;
     })
   | null;
 export interface OptionalProxyAgentConfig {
@@ -81,3 +85,7 @@ export interface Balance {
 }
 
 export type Cex = 'okx' | 'binance';
+
+export type HttpMethod = 'GET' | 'PUT' | 'POST' | 'DELETE' | 'PATCH';
+
+export type Balances = Partial<Record<Tokens, number>>;

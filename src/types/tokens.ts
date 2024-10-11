@@ -11,6 +11,14 @@ export enum EthTokens {
   WETH = 'WETH',
   DAI = 'DAI',
 }
+export enum TaikoTokens {
+  ETH = 'ETH',
+  USDC = 'USDC',
+  USDT = 'USDT',
+  'USDC.e' = 'USDC.e',
+  WETH = 'WETH',
+  TAIKO = 'TAIKO',
+}
 export enum BnbTokens {
   BNB = 'BNB',
   USDT = 'USDT',

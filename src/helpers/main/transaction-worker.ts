@@ -35,6 +35,7 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
     proxyAgent,
     proxyObject,
     nativePrices,
+    isInnerWorker = false,
   } = props;
 
   if (countTxRange > 1) {
@@ -96,7 +97,15 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
         }
 
         // TODO: move it to constants later
-        const modulesWithoutAutogas: ModuleNames[] = ['binance-withdraw', 'okx-withdraw', 'okx-collect'];
+        const modulesWithoutAutogas: ModuleNames[] = [
+          'binance-withdraw',
+          'okx-withdraw',
+          'okx-collect',
+          'okx-wait-balance',
+          'bitget-collect',
+          'bitget-withdraw',
+          'bitget-wait-balance',
+        ];
         const moduleName = props.moduleName;
 
         const params = {
@@ -167,7 +176,7 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
         }
 
         if (response.status === 'warning' || response.status === 'critical') {
-          if (response.status === 'warning' && !props.stopWalletOnError) {
+          if (!isInnerWorker && response.status === 'warning' && !props.stopWalletOnError) {
             updateSavedModulesCount({
               wallet,
               moduleIndex,
@@ -252,7 +261,7 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
 
         for (const [originalMessage, customMessage] of Object.entries(WARNING_ERRORS_MAP)) {
           if (errorMessage.includes(originalMessage)) {
-            if (!props.stopWalletOnError) {
+            if (!isInnerWorker && !props.stopWalletOnError) {
               updateSavedModulesCount({
                 wallet,
                 moduleIndex,
@@ -270,7 +279,7 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
         }
 
         for (const [originalMessage, customMessage] of Object.entries(PASSED_ERROR_MAP)) {
-          if (errorMessage.includes(originalMessage)) {
+          if (!isInnerWorker && errorMessage.includes(originalMessage)) {
             updateSavedModulesCount({
               wallet,
               moduleIndex,
@@ -290,7 +299,7 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
           }
         }
 
-        if (attempts > 0) {
+        if (attempts > 0 && !isInnerWorker) {
           logger.warning(`${errorMessage}. ${attempts} attempts left`, logTemplate);
 
           await sleep(settings.delay.betweenRetries, logTemplate, logger);
@@ -301,7 +310,7 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
           const shouldUpdateProxy = checkMultipleOf(attemptsToChangeProxy, currentRetryCount);
 
           if (settings.useProxy && shouldUpdateProxy) {
-            const newProxyData = await createRandomProxyAgent(wallet.updateProxyLink, logger);
+            const newProxyData = await createRandomProxyAgent(logger);
 
             if (newProxyData) {
               const { proxyAgent: newProxyAgent, ...newProxyObject } = newProxyData;
@@ -311,7 +320,9 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
             }
           }
         } else {
-          logger.warning(`The attempts are over. ${attempts} attempts left`, logTemplate);
+          if (!isInnerWorker) {
+            logger.warning(`The attempts are over. ${attempts} attempts left`, logTemplate);
+          }
 
           return {
             ...workerResponse,

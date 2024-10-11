@@ -25,27 +25,74 @@ export const sendTgMessage = async ({ chatIds, token, message }: SendMessageProp
   const url = `${TG_BASE_URL}${token}/sendMessage`;
 
   const requestPromises = chatIds.map(async (id) => {
-    const params = { chat_id: id, text: message };
+    const params = {
+      chat_id: id,
+      text: message,
+      parse_mode: 'MarkdownV2',
+      link_preview_options: {
+        is_disabled: true,
+      },
+    };
     return axios.post(url, params);
   });
 
-  return Promise.all(requestPromises);
+  await Promise.all(requestPromises);
 };
 
 export const getTgMessageByStatus = (
   status: Exclude<ResponseStatus, 'passed'> = 'success',
   moduleName: string,
-  message?: string
+  message?: string,
+  link?: {
+    url: string;
+    msg: string;
+  }
 ) => {
-  const content = message ? `[${moduleName}]: ${message}` : moduleName;
+  const mdMessage = transformMdMessage(
+    message || link ? `[${moduleName}]:${message ? ' ' + message : ''}` : moduleName
+  );
+
+  const msgWithUrl = link ? mdMessage + ` ${message ? '\\| ' : ''}[${link.msg}](${link?.url})` : mdMessage;
+
   switch (status) {
     case 'success':
-      return `✅ ${content}`;
+      return `✅ ${msgWithUrl}`;
     case 'warning':
-      return `⚠️ ${content}`;
+      return `⚠️ ${msgWithUrl}`;
     case 'error':
-      return `❌ ${content}`;
+      return `❌ ${msgWithUrl}`;
     case 'critical':
-      return `💢 ${content}`;
+      return `💢 ${msgWithUrl}`;
   }
+};
+
+export const transformMdMessage = (msg: string): string => {
+  const reservedSymbols = [
+    '\\',
+    '!',
+    '+',
+    '-',
+    '_',
+    '=',
+    '#',
+    '(',
+    ')',
+    '{',
+    '}',
+    '[',
+    ']',
+    '~',
+    '*',
+    '`',
+    '|',
+    '.',
+    '>',
+  ];
+
+  let mdMessage = msg;
+  for (const symbol of reservedSymbols) {
+    mdMessage = mdMessage.replaceAll(symbol, '\\' + symbol);
+  }
+
+  return mdMessage;
 };

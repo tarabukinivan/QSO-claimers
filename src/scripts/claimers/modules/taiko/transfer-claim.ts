@@ -11,27 +11,40 @@ import {
 import {
   calculateAmount,
   decimalToInt,
+  getAxiosConfig,
   getGasOptions,
+  getHeaders,
+  intToDecimal,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../../helpers';
 import { TransformedModuleParams } from '../../../../types';
-import { LayerZeroClaimEntity } from '../../db/entities';
+import { TaikoClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
-import { ZRO_ABI, ZRO_CLAIM_CONTRACTS, ZRO_CLAIMER_CONTRACTS, ZRO_CONTRACT } from './constants';
-import { getBalance } from './helpers';
+import { CLAIM_TAIKO_CONTRACT, HEADERS, TAIKO_ABI } from './constants';
+import { getBalance, getFinalData, getProofData } from './helpers';
 
-export const execMakeTransferClaimLayerZero = async (params: TransformedModuleParams) =>
+export const execMakeTransferClaimTaiko = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
-    startLogMessage: 'Execute make transfer claimed $ZRO...',
-    transactionCallback: makeTransferClaimLayerZero,
+    startLogMessage: 'Execute make transfer claimed TAIKO...',
+    transactionCallback: makeTransferClaimTaiko,
   });
 
-const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
-  const { client, dbSource, minAndMaxAmount, usePercentBalance, wallet, gweiRange, gasLimitRange, network, logger } =
-    params;
+const makeTransferClaimTaiko = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
+  const {
+    client,
+    dbSource,
+    minAndMaxAmount,
+    usePercentBalance,
+    wallet,
+    gweiRange,
+    gasLimitRange,
+    network,
+    logger,
+    proxyAgent,
+  } = params;
 
   const { walletClient, walletAddress, publicClient, explorerLink } = client;
 
@@ -45,7 +58,7 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
     };
   }
 
-  const dbRepo = dbSource.getRepository(LayerZeroClaimEntity);
+  const dbRepo = dbSource.getRepository(TaikoClaimEntity);
 
   let walletInDb = await dbRepo.findOne({
     where: {
@@ -56,6 +69,19 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
   if (walletInDb) {
     await dbRepo.remove(walletInDb);
   }
+  const headers = getHeaders(HEADERS);
+  const config = await getAxiosConfig({
+    proxyAgent,
+    headers,
+  });
+  const dataProps = {
+    network,
+    config,
+    walletAddress,
+    chainId: client.chainData.id,
+  };
+
+  const finalRes = await getFinalData(dataProps);
 
   const created = dbRepo.create({
     walletId: wallet.id,
@@ -68,20 +94,34 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
   walletInDb = await dbRepo.save(created);
 
   try {
-    const zroClaimedContract = ZRO_CLAIMER_CONTRACTS[network];
-    const contract = ZRO_CLAIM_CONTRACTS[network];
-    if (!contract || !zroClaimedContract) {
-      throw new Error(`Network ${network} is not supported`);
-    }
+    const contract = CLAIM_TAIKO_CONTRACT;
 
     const { int } = await client.getNativeBalance();
     nativeBalance = +int.toFixed(6);
 
+    const proofRes = await getProofData(dataProps);
+    if (!proofRes.value || !proofRes.proof) {
+      await dbRepo.update(walletInDb.id, {
+        status: CLAIM_STATUSES.NOT_ELIGIBLE,
+      });
+
+      return {
+        status: 'passed',
+        message: getCheckClaimMessage(CLAIM_STATUSES.NOT_ELIGIBLE),
+      };
+    }
+
+    const amountInt = +proofRes.value;
+    const amountWei = intToDecimal({
+      amount: amountInt,
+      decimals: 18,
+    });
+
     const claimed = (await publicClient.readContract({
-      address: zroClaimedContract,
-      abi: ZRO_ABI,
-      functionName: 'zroClaimed',
-      args: [walletAddress],
+      address: contract,
+      abi: TAIKO_ABI,
+      functionName: 'hasClaimed',
+      args: [walletAddress, amountWei],
     })) as bigint;
 
     if (claimed === 0n) {
@@ -130,10 +170,10 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
       amount: amountToTransfer,
       decimals: 18,
     });
-    logger.info(`Sending ${amountToTransferInt} $ZRO to ${transferAddress}...`);
+    logger.info(`Sending ${amountToTransferInt} TAIKO to ${transferAddress}...`);
 
     const txHash = await walletClient.writeContract({
-      address: ZRO_CONTRACT,
+      address: '0xA9d23408b9bA935c230493c40C73824Df71A0975',
       abi: defaultTokenAbi,
       functionName: 'transfer',
       args: [getAddress(transferAddress), amountToTransfer],
@@ -146,12 +186,10 @@ const makeTransferClaimLayerZero = async (params: TransactionCallbackParams): Tr
       status: CLAIM_STATUSES.TRANSFER_SUCCESS,
       balance: currentBalance - amountToTransferInt,
       nativeBalance,
-      transferred: amountToTransferInt,
-      transferredTo: transferAddress,
     });
 
     return {
-      tgMessage: `Sent ${amountToTransferInt} $ZRO to ${transferAddress}`,
+      tgMessage: `Sent ${amountToTransferInt} TAIKO to ${transferAddress}`,
       status: 'success',
       txHash,
       explorerLink,

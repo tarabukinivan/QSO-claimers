@@ -1,6 +1,12 @@
 import { RPCsRecord } from '../types';
 
 export const PUBLIC_RPCS: RPCsRecord = {
+  taiko: [
+    'https://rpc.ankr.com/taiko',
+    // 'https://rpc.taiko.xyz',
+    // 'https://rpc.taiko.tools',
+    // 'https://rpc.mainnet.taiko.xyz',
+  ],
   bsc: [
     // 'https://binance.llamarpc.com',
     'https://bsc-pokt.nodies.app',

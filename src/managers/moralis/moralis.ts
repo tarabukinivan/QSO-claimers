@@ -11,7 +11,7 @@ export class Moralis {
   async init(logger?: LoggerType) {
     try {
       if (!MORALIS_KEY) {
-        throw new Error('Please provide MORALIS_KEY in global.js');
+        return;
       }
 
       await MoralisLib.start({

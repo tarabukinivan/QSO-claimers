@@ -1,6 +1,7 @@
 import { NetworksRecord } from '../types';
 
 export const explorerLinks: NetworksRecord = {
+  taiko: 'https://taikoscan.io',
   bsc: 'https://bscscan.com',
   opBNB: 'https://opbnbscan.com',
   eth: 'https://etherscan.io',

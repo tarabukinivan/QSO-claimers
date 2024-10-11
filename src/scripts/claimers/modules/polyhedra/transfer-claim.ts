@@ -104,8 +104,8 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       headers,
     });
 
-    const secondAddress = wallet.secondAddress;
-    if (!secondAddress) {
+    const transferAddress = wallet.transferAddress;
+    if (!transferAddress) {
       throw new Error(SECOND_ADDRESS_EMPTY_ERROR);
     }
 
@@ -171,14 +171,14 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       throw new Error(ZERO_TRANSFER_AMOUNT);
     }
 
-    logger.info(`Sending ${amountToTransfer} ZK to ${secondAddress}...`);
+    logger.info(`Sending ${amountToTransfer} ZK to ${transferAddress}...`);
 
     const txHash = await walletClient.writeContract({
       address: PROJECT_CONTRACTS.zkAddress as Hex,
       abi: defaultTokenAbi,
       functionName: 'transfer',
       args: [
-        secondAddress as Hex,
+        transferAddress as Hex,
         intToDecimal({
           amount: amountToTransfer,
           decimals: DECIMALS,
@@ -205,7 +205,7 @@ const makeTransferClaimPolyhedra = async (params: TransactionCallbackParams): Tr
       gasSpent: +(claimGasSpent + transferGasSpent).toFixed(6),
       nativeBalance,
       transferred: amountToTransfer,
-      transferredTo: secondAddress,
+      transferredTo: transferAddress,
     });
 
     return {

@@ -16,6 +16,7 @@ import {
   PolygonClient,
   PolygonZkEvmClient,
   ScrollClient,
+  TaikoClient,
   ZkFairClient,
   ZkSyncClient,
   ZoraClient,
@@ -28,6 +29,8 @@ export const getClientByNetwork = (networkName: SupportedNetworks, privKey: stri
   const decryptedPrivKey = decryptKey(privKey);
 
   switch (networkName) {
+    case Networks.TAIKO:
+      return new TaikoClient(decryptedPrivKey, logger);
     case Networks.BSC:
       return new BscClient(decryptedPrivKey, logger);
     case Networks.OP_BNB:

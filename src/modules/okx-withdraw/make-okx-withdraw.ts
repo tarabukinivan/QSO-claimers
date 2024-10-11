@@ -1,5 +1,3 @@
-import { Hex } from 'viem';
-
 import { EMPTY_BALANCE_ERROR, OKX_WL_ERROR, WAIT_TOKENS } from '../../constants';
 import {
   addNumberPercentage,
@@ -15,15 +13,12 @@ import {
   TransactionCallbackReturn,
   transactionWorker,
   getContractData,
-  getHeaders,
-  getAxiosConfig,
-  getLogMsgWalletToppedUpTg,
+  getTrimmedLogsAmount,
 } from '../../helpers';
 import { type LoggerData } from '../../logger';
 import { Okx } from '../../managers/okx';
-import { HEADERS } from '../../scripts/claimers/modules/layer-zero/constants';
-import { getAmount, getDonationData, getEligibilityData } from '../../scripts/claimers/modules/layer-zero/helpers';
 import { OkxNetworks, Tokens, TransformedModuleParams } from '../../types';
+import { okxWaitBalance } from '../okx-collect';
 
 interface MakeOkxWithdraw {
   preparedTopUpOptions?: GetTopUpOptionsResult;
@@ -38,7 +33,6 @@ export const makeOkxWithdraw = async (
   };
 
   const {
-    addDonationAmount,
     okxWithdrawNetwork: okxWithdrawNetworkProp,
     wallet,
     expectedBalance,
@@ -56,8 +50,45 @@ export const makeOkxWithdraw = async (
     preparedTopUpOptions,
     withdrawAdditionalPercent,
     withMinAmountError,
-    proxyAgent,
+    minDestTokenBalance,
+    minDestTokenNetwork,
+    waitBalance,
+    collectTokens,
   } = props;
+
+  if (minDestTokenBalance) {
+    const destClient = getClientByNetwork(minDestTokenNetwork, wallet.privKey, logger);
+    const nativeToken = destClient.chainData.nativeCurrency.symbol as Tokens;
+    const tokenToCheck = tokenToWithdrawProp || nativeToken;
+
+    const {
+      tokenContractInfo,
+      isNativeToken: isNativeTokenToWithdraw,
+      token,
+    } = getContractData({
+      nativeToken,
+      network: minDestTokenNetwork,
+      token: tokenToCheck,
+    });
+
+    const balance = await destClient.getNativeOrContractBalance(isNativeTokenToWithdraw, tokenContractInfo);
+    if (balance.int >= minDestTokenBalance) {
+      return {
+        status: 'passed',
+        message: `Balance [${getTrimmedLogsAmount(
+          balance.int,
+          token
+        )}] in ${minDestTokenNetwork} is already equal or more then minDestTokenBalance [${minDestTokenBalance} ${token}]`,
+      };
+    }
+  }
+
+  if (waitBalance && collectTokens?.length) {
+    const { message } = await okxWaitBalance(props);
+    if (message) {
+      logger.success(message);
+    }
+  }
 
   let okxWithdrawNetwork = okxWithdrawNetworkProp;
   let client = getClientByNetwork(okxWithdrawNetwork, wallet.privKey, logger);
@@ -99,42 +130,9 @@ export const makeOkxWithdraw = async (
     tokenToWithdraw = res.token;
   }
 
+  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(expectedBalance);
+
   const walletAddress = wallet.walletAddress;
-
-  let additionalAmount = 0;
-  if (addDonationAmount) {
-    const headers = getHeaders(HEADERS);
-    const config = await getAxiosConfig({
-      proxyAgent,
-      headers,
-    });
-
-    const eligibilityRes = await getEligibilityData({
-      network: 'arbitrum',
-      walletAddress: walletAddress as Hex,
-      chainId: 42_161,
-      config,
-    });
-
-    if (eligibilityRes.isEligible) {
-      const { amountInt } = await getAmount(eligibilityRes);
-
-      const { donationAmountInt } = await getDonationData({
-        client,
-        network: 'arbitrum',
-        amountInt,
-        nativePrices,
-      });
-
-      additionalAmount = donationAmountInt;
-    }
-  }
-
-  const { currentExpectedBalance, isTopUpByExpectedBalance } = getExpectedBalance(
-    expectedBalance && expectedBalance[0] && expectedBalance[1]
-      ? [expectedBalance[0] + additionalAmount, expectedBalance[1] + additionalAmount]
-      : expectedBalance
-  );
 
   const topUpOptions =
     preparedTopUpOptions ||
@@ -145,15 +143,12 @@ export const makeOkxWithdraw = async (
       nativePrices,
       currentExpectedBalance,
       isTopUpByExpectedBalance,
-      minTokenBalance: minTokenBalance ? minTokenBalance + additionalAmount : minTokenBalance,
-      minAndMaxAmount:
-        minAndMaxAmount && minAndMaxAmount[0] && minAndMaxAmount[1]
-          ? [minAndMaxAmount[0] + additionalAmount, minAndMaxAmount[1] + additionalAmount]
-          : minAndMaxAmount,
+      minTokenBalance,
+      minAndMaxAmount,
       isNativeTokenToWithdraw,
       tokenContractInfo,
       tokenToWithdraw,
-      amount: amount ? amount + additionalAmount : amount,
+      amount,
       network: okxWithdrawNetwork,
       useUsd,
       minAmount,
@@ -177,7 +172,7 @@ export const makeOkxWithdraw = async (
 
   if (shouldTopUp) {
     try {
-      const { id, amount: sentAmount } = await okx.execWithdraw({
+      const { id, logsAmount } = await okx.execWithdraw({
         walletAddress,
         token: tokenToWithdraw,
         network: okxWithdrawNetwork,
@@ -186,38 +181,42 @@ export const makeOkxWithdraw = async (
 
       let currentBalance = await client.getNativeOrContractBalance(isNativeTokenToWithdraw, tokenContractInfo);
 
-      let withdrawIsOk = await okx.checkWithdrawal({ id, publicClient: client.publicClient });
-      while (!(currentBalance.int > prevTokenBalance) && withdrawIsOk) {
-        const currentSleep = waitTime || 20;
-        await sleep(currentSleep);
+      // let withdrawIsOk = await okx.checkWithdrawal({ id, publicClient: client.publicClient });
+      while (
+        !(currentBalance.int > prevTokenBalance)
+        // && withdrawIsOk
+      ) {
+        try {
+          const currentSleep = waitTime || 20;
+          await sleep(currentSleep);
 
-        currentBalance = await client.getNativeOrContractBalance(isNativeTokenToWithdraw, tokenContractInfo);
-        withdrawIsOk = await okx.checkWithdrawal({ id, publicClient: client.publicClient });
+          currentBalance = await client.getNativeOrContractBalance(isNativeTokenToWithdraw, tokenContractInfo);
+          // withdrawIsOk = await okx.checkWithdrawal({ id, publicClient: client.publicClient });
 
-        if (!hideExtraLogs) {
-          logger.info(WAIT_TOKENS, logTemplate);
+          if (!hideExtraLogs) {
+            logger.info(WAIT_TOKENS, logTemplate);
+          }
+        } catch (e) {
+          //
         }
       }
 
-      if (!withdrawIsOk) {
-        return {
-          status: 'error',
-          message: 'Unable to make withdraw successfully',
-        };
-      }
+      // if (!withdrawIsOk) {
+      //   return {
+      //     status: 'error',
+      //     message: 'Unable to make withdraw successfully',
+      //   };
+      // }
 
+      const message = getLogMsgWalletToppedUp({
+        cex: 'OKX',
+        balance: currentBalance.int,
+        token: tokenToWithdraw,
+      });
       return {
         status: 'success',
-        message: getLogMsgWalletToppedUp({
-          cex: 'OKX',
-          balance: currentBalance.int,
-          token: tokenToWithdraw,
-        }),
-        tgMessage: getLogMsgWalletToppedUpTg({
-          amount: sentAmount,
-          balance: currentBalance.int,
-          token: tokenToWithdraw,
-        }),
+        message,
+        tgMessage: `${okxWithdrawNetwork} | Withdrawn: ${logsAmount}`,
       };
     } catch (err) {
       const errorMessage = (err as Error).message;
@@ -228,7 +227,7 @@ export const makeOkxWithdraw = async (
 
       if (errorMessage.includes(EMPTY_BALANCE_ERROR)) {
         return {
-          status: 'critical',
+          status: 'error',
           message: `OKX balance in ${okxWithdrawNetwork} is low to make withdrawal`,
         };
       }

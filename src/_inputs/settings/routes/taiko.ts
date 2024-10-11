@@ -11,51 +11,29 @@ const countModules = [0, 0] as NumberRange;
 const groupSettings: GroupSettings = {};
 
 const modules: UserModuleConfig[] = [
+  // {
+  //   moduleName: 'bitget-collect',
+  //   collectTokens: ['ETH'],
+  //
+  //   indexGroup: 0,
+  // },
+
+  // {
+  //   moduleName: 'taiko-check-claim',
+  //   indexGroup: 1,
+  // },
   {
-    indexGroup: 0,
-    moduleName: 'relay-bridge',
+    moduleName: 'taiko-claim',
 
-    minNativeBalance: 0.0015,
-    minDestNativeBalance: 0,
-
-    destinationNetworks: ['optimism', 'arbitrum', 'zkSync'],
-    network: 'blast',
-    randomNetworks: [],
-
-    balanceToLeft: [0.00006, 0.00009],
+    indexGroup: 5,
   },
-
-  {
-    indexGroup: 1,
-    moduleName: 'transfer-token',
-
-    network: 'optimism',
-    contractAddress: 'native',
-    minTokenBalance: 0.0015,
-
-    balanceToLeft: [0.0006, 0.0009],
-  },
-  {
-    indexGroup: 1,
-    moduleName: 'transfer-token',
-
-    network: 'arbitrum',
-    contractAddress: 'native',
-    minTokenBalance: 0.0015,
-
-    balanceToLeft: [0.0006, 0.0009],
-  },
-  {
-    indexGroup: 1,
-    moduleName: 'transfer-token',
-
-    network: 'zkSync',
-    contractAddress: 'native',
-    minTokenBalance: 0.0015,
-
-    minAndMaxAmount: [100, 100],
-    usePercentBalance: true,
-  },
+  // {
+  //   moduleName: 'taiko-transfer-claim',
+  //   minAndMaxAmount: [100, 100],
+  //   usePercentBalance: true,
+  //
+  //   indexGroup: 10,
+  // },
 ];
 
 // Выполнит скрипт на указанном количестве кошельков

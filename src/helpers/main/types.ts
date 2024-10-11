@@ -27,6 +27,7 @@ export type TransactionWorkerProps = BaseTransactionWorkerProps & {
   baseNetwork: SupportedNetworks;
   projectName: string;
   moduleIndex: number;
+  isInnerWorker?: boolean;
 };
 export type TransactionCallbackResponse = {
   status: ResponseStatus;

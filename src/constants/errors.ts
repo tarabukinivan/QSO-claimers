@@ -1,5 +1,8 @@
 export const OKX_ERROR = 'Something wrong with OKX';
 export const EMPTY_BALANCE_ERROR = 'Insufficient balance';
+export const BITGET_KEYS_ERROR = 'Please provide keys for Bitget in _inputs/settings/global.js file';
+export const BITGET_ADDRESS_EMPTY_ERROR =
+  'You dont have a Bitget address for transfer. Please add it to the _inputs/csv/wallets.csv';
 
 export const OKX_WL_ERROR = 'Wallet was not whitelisted in OKX';
 export const LOW_BALANCE_ERROR = 'Balance is too low to make transaction. Please topUp your wallet';
@@ -62,6 +65,7 @@ export const CRITICAL_ERRORS_MAP = {
   'not authorized to execute this request': NO_TOKEN_ERROR,
   [OKX_WL_ERROR]: OKX_WL_ERROR,
   [OKX_ERROR]: OKX_ERROR,
+  [BITGET_KEYS_ERROR]: BITGET_KEYS_ERROR,
   [AMOUNT_IS_TOO_LOW_ERROR]: AMOUNT_IS_TOO_LOW_ERROR,
   [WITHDRAW_ERROR]: WITHDRAW_ERROR,
   [NO_CURRENCY_ERROR]: NO_CURRENCY_ERROR,

@@ -4,27 +4,27 @@ import { spawn } from 'child_process';
 import inquirer from 'inquirer';
 
 import { SECRET_PHRASE } from '../_inputs/settings/global.js';
-import savedBlastModules from '../_outputs/json/blast-saved-modules.json' assert { type: 'json' };
 import savedLayerZeroModules from '../_outputs/json/layer-zero-saved-modules.json' assert { type: 'json' };
 import savedPolyhedraModules from '../_outputs/json/polyhedra-saved-modules.json' assert { type: 'json' };
+import savedTaikoModules from '../_outputs/json/taiko-saved-modules.json' assert { type: 'json' };
 
 const scripts = {
+  taiko: 'taiko',
   polyhedra: 'polyhedra',
   layerZero: 'layer-zero',
-  blast: 'blast',
 };
 const aliases = {
-  runPolyhedra: '1. Polyhedra',
-  runLayerZero: '2. LayerZero',
-  runBlast: '3. Blast',
+  runTaiko: '1. Taiko',
+  runPolyhedra: '2. Polyhedra',
+  runLayerZero: '3. LayerZero',
 
   exit: '0. Выйти',
 };
 
 const commandAliases = {
+  [aliases.runTaiko]: scripts.taiko,
   [aliases.runPolyhedra]: scripts.polyhedra,
   [aliases.runLayerZero]: scripts.layerZero,
-  [aliases.runBlast]: scripts.blast,
 
   [aliases.exit]: 'exit',
 };
@@ -35,14 +35,14 @@ const getStartMainCommand = async (projectName) => {
 
   let currentSavedModulesToUse;
   switch (projectName) {
+    case scripts.taiko:
+      currentSavedModulesToUse = savedTaikoModules;
+      break;
     case scripts.polyhedra:
       currentSavedModulesToUse = savedPolyhedraModules;
       break;
     case scripts.layerZero:
       currentSavedModulesToUse = savedLayerZeroModules;
-      break;
-    case scripts.blast:
-      currentSavedModulesToUse = savedBlastModules;
       break;
 
     default:
@@ -118,6 +118,12 @@ const getSecretPhrase = async () => {
   let args = [];
 
   switch (selectedAlias) {
+    case aliases.runTaiko: {
+      const { command, secret, projectName } = await getStartMainCommand(scripts.taiko);
+      selectedCommand = command;
+      args = [secret, projectName, projectName];
+      break;
+    }
     case aliases.runPolyhedra: {
       const { command, secret, projectName } = await getStartMainCommand(scripts.polyhedra);
       selectedCommand = command;
@@ -126,12 +132,6 @@ const getSecretPhrase = async () => {
     }
     case aliases.runLayerZero: {
       const { command, secret, projectName } = await getStartMainCommand(scripts.layerZero);
-      selectedCommand = command;
-      args = [secret, projectName, projectName];
-      break;
-    }
-    case aliases.runBlast: {
-      const { command, secret, projectName } = await getStartMainCommand(scripts.blast);
       selectedCommand = command;
       args = [secret, projectName, projectName];
       break;
@@ -159,12 +159,13 @@ const getSecretPhrase = async () => {
       if (errMessage.includes('triggerUncaughtException')) {
         errMessage =
           'Unknown error occurred: please, call "tsc" command to see the problem or compare global.js with global.example.js';
-      } else {
-        errMessage = errMessage
-          .split('\n')
-          .filter((string) => !!string)
-          .at(-1);
       }
+      // else {
+      //   errMessage = errMessage
+      //     .split('\n')
+      //     .filter((string) => !!string)
+      //     .at(-1);
+      // }
 
       process.stderr.write(
         `\x1b[31m${errMessage}\x1b[0m
