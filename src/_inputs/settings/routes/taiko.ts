@@ -18,22 +18,23 @@ const modules: UserModuleConfig[] = [
   //   indexGroup: 0,
   // },
 
-  // {
-  //   moduleName: 'taiko-check-claim',
-  //   indexGroup: 1,
-  // },
+  {
+    moduleName: 'taiko-check-claim',
+    indexGroup: 1,
+  },
   {
     moduleName: 'taiko-claim',
+    stopWalletOnError: true,
 
     indexGroup: 5,
   },
-  // {
-  //   moduleName: 'taiko-transfer-claim',
-  //   minAndMaxAmount: [100, 100],
-  //   usePercentBalance: true,
-  //
-  //   indexGroup: 10,
-  // },
+  {
+    moduleName: 'taiko-transfer-claim',
+    minAndMaxAmount: [100, 100],
+    usePercentBalance: true,
+
+    indexGroup: 10,
+  },
 ];
 
 // Выполнит скрипт на указанном количестве кошельков
