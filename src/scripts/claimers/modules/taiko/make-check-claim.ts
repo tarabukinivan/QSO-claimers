@@ -147,7 +147,9 @@ const makeCheckClaimTaiko = async (params: TransactionCallbackParams): Transacti
   } catch (err) {
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.CHECK_ERROR,
+      claimAmount: amountInt,
       nativeBalance,
+      balance: currentBalance,
       error: formatErrMessage(err),
     });
 

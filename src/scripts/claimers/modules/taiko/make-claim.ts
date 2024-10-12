@@ -99,6 +99,9 @@ const makeClaimTaiko = async (params: TransactionCallbackParams): TransactionCal
       decimals: 18,
     });
 
+    const { currentBalance: currentBalanceInt } = await getBalance(client);
+    currentBalance = currentBalanceInt;
+
     const claimed = (await publicClient.readContract({
       address: contract,
       abi: TAIKO_ABI,
@@ -107,6 +110,20 @@ const makeClaimTaiko = async (params: TransactionCallbackParams): TransactionCal
     })) as bigint;
 
     if (claimed > 0n) {
+      if (currentBalance === 0) {
+        await dbRepo.update(walletInDb.id, {
+          status: CLAIM_STATUSES.CLAIMED_AND_SENT,
+          claimAmount: amountInt,
+          nativeBalance,
+          balance: currentBalance,
+        });
+
+        return {
+          status: 'passed',
+          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+        };
+      }
+
       await dbRepo.update(walletInDb.id, {
         status: CLAIM_STATUSES.ALREADY_CLAIMED,
         claimAmount: amountInt,
@@ -119,9 +136,6 @@ const makeClaimTaiko = async (params: TransactionCallbackParams): TransactionCal
         message: getCheckClaimMessage(CLAIM_STATUSES.ALREADY_CLAIMED),
       };
     }
-
-    const { currentBalance: currentBalanceInt } = await getBalance(client);
-    currentBalance = currentBalanceInt;
 
     const feeOptions = await getGasOptions({
       gweiRange,

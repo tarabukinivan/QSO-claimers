@@ -50,7 +50,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
 
   let nativeBalance = 0;
   let currentBalance = 0;
-
+  let amountInt = 0;
   if (!dbSource) {
     return {
       status: 'critical',
@@ -113,11 +113,14 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
       };
     }
 
-    const amountInt = +proofRes.value;
+    amountInt = +proofRes.value;
     const amountWei = intToDecimal({
       amount: amountInt,
       decimals: 18,
     });
+
+    const { currentBalance: currentBalanceInt, currentBalanceWei } = await getBalance(client);
+    currentBalance = currentBalanceInt;
 
     const claimed = (await publicClient.readContract({
       address: contract,
@@ -129,6 +132,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     if (claimed === 0n) {
       await dbRepo.update(walletInDb.id, {
         status: CLAIM_STATUSES.NOT_CLAIMED,
+        claimAmount: amountInt,
         nativeBalance,
         balance: currentBalance,
       });
@@ -151,9 +155,6 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
       publicClient,
     });
 
-    const { currentBalance: currentBalanceInt, currentBalanceWei } = await getBalance(client);
-    currentBalance = currentBalanceInt;
-
     const amountToTransfer = calculateAmount({
       balance: currentBalanceWei,
       isBigInt: true,
@@ -167,6 +168,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     if (isEmptyAmount) {
       await dbRepo.update(walletInDb.id, {
         status: CLAIM_STATUSES.CLAIMED_AND_SENT,
+        claimAmount: amountInt,
         nativeBalance,
         balance: currentBalance,
       });
@@ -195,8 +197,9 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
 
     await dbRepo.update(walletInDb.id, {
       status: CLAIM_STATUSES.TRANSFER_SUCCESS,
-      balance: currentBalance - amountToTransferInt,
+      claimAmount: amountInt,
       nativeBalance,
+      balance: currentBalance - amountToTransferInt,
     });
 
     return {
@@ -212,6 +215,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
       status: CLAIM_STATUSES.TRANSFER_ERROR,
       balance: currentBalance,
       nativeBalance,
+      claimAmount: amountInt,
       error: errMessage,
     });
 
