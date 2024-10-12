@@ -119,7 +119,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     indexGroup: 0,
 
     stopWalletOnError: true,
-    stopWalletOnPassed: true,
+    stopWalletOnPassed: false,
 
     // Сеть для которой выполнять модуль eth | bsc
     network: 'taiko',
@@ -129,7 +129,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     indexGroup: 1,
 
     stopWalletOnError: true,
-    stopWalletOnPassed: true,
+    stopWalletOnPassed: false,
 
     // Сеть для которой выполнять модуль
     network: 'taiko',
@@ -141,7 +141,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     indexGroup: 2,
 
     stopWalletOnError: true,
-    stopWalletOnPassed: true,
+    stopWalletOnPassed: false,
 
     minAndMaxAmount: [100, 100],
     usePercentBalance: true,

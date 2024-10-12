@@ -69,6 +69,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
   if (walletInDb) {
     await dbRepo.remove(walletInDb);
   }
+
   const headers = getHeaders(HEADERS);
   const config = await getAxiosConfig({
     proxyAgent,
@@ -90,6 +91,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     network,
     nativeBalance,
     status: 'New',
+    score: finalRes.total,
   });
   walletInDb = await dbRepo.save(created);
 
@@ -163,7 +165,16 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     const isEmptyAmount = amountToTransfer === 0n;
 
     if (isEmptyAmount) {
-      throw new Error(ZERO_TRANSFER_AMOUNT);
+      await dbRepo.update(walletInDb.id, {
+        status: CLAIM_STATUSES.CLAIMED_AND_SENT,
+        nativeBalance,
+        balance: currentBalance,
+      });
+
+      return {
+        status: 'passed',
+        message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+      };
     }
 
     const amountToTransferInt = decimalToInt({
