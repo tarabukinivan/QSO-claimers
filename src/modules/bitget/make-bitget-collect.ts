@@ -24,7 +24,17 @@ const makeBitgetTransferFromSubAccs = async (params: TransactionCallbackParams):
     tokens: uniqueCollectTokens,
   });
 
+  const mainBalance = await bitget.getAssets();
+
+  const balancesToLog = mainBalance
+    .filter(({ coin }: any) => collectTokens?.includes(coin))
+    .map(({ coin, available }: any) => `${coin}=${available}`)
+    .join(', ');
+
+  const message = `Main acc balances [${balancesToLog}]`;
   return {
     status: 'success',
+    tgMessage: message,
+    message,
   };
 };

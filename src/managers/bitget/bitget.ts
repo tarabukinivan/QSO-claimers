@@ -371,7 +371,7 @@ export class Bitget {
       requestPath: '/spot/account/info',
     });
   }
-  private async getAssets(props?: GetAssets) {
+  async getAssets(props?: GetAssets) {
     return this.makeRequest({
       method: 'GET',
       requestPath: '/spot/account/assets',
