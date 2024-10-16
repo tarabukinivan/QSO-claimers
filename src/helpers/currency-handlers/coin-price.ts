@@ -1,10 +1,12 @@
 import axios from 'axios';
 
+import settings from '../../_inputs/settings/settings';
 import { CRYPTO_COMPARE_URL, GECKO_API_URL } from '../../constants/urls';
 import type { LoggerType } from '../../logger';
 import { ProxyAgent, SUPPORTED_NETWORKS } from '../../types';
 import { getNativeTokenByNetwork } from '../clients';
-import { getAxiosConfig, getHeaders, sleep } from '../utils';
+import { getFormattedErrorMessage } from '../main';
+import { createRandomProxyAgent, getAxiosConfig, getHeaders, sleep } from '../utils';
 
 const SLEEP_BETWEEN_FAIL = 10;
 
@@ -78,7 +80,7 @@ export const getCoinsPriceCoingecko = async (props: GetPrices): Promise<CoinPric
 
     return coinPrices;
   } catch (err) {
-    logger.warning(`Unable to get ${coins} price`, { action: 'getCoinPrice', status: 'failed' });
+    logger.warning(`Unable to get ${coins} price`, { action: 'getCoinPrice' });
     await sleep(SLEEP_BETWEEN_FAIL);
     await getCoinsPriceCoingecko(props);
   }
@@ -90,19 +92,29 @@ type CryptoCompareResponse = Record<string, { USD: number }> | null;
 export type CryptoCompareResult = Record<string, number>;
 
 export const getCoinPriceCryptoCompare = async (props: GetPrices): Promise<CryptoCompareResult> => {
-  const { coins, logger, proxyAgent } = props;
+  const { coins, logger, proxyAgent: proxyAgentProp } = props;
 
   let coinPrice: CryptoCompareResponse = null;
 
-  const headers = getHeaders();
-  const config = await getAxiosConfig({
-    proxyAgent,
-    headers,
-  });
-
   const coinsString = coins.join(',');
   while (!coinPrice) {
+    let proxyAgent;
+
+    if (settings.useProxy) {
+      const proxyData = await createRandomProxyAgent();
+
+      if (proxyData) {
+        proxyAgent = proxyData.proxyAgent;
+      }
+    }
+
     try {
+      const headers = getHeaders();
+      const config = await getAxiosConfig({
+        proxyAgent: proxyAgentProp || proxyAgent,
+        headers,
+      });
+
       const response = await axios.get(`${CRYPTO_COMPARE_URL}`, {
         params: {
           fsyms: coinsString,
@@ -117,7 +129,8 @@ export const getCoinPriceCryptoCompare = async (props: GetPrices): Promise<Crypt
 
       coinPrice = response.data;
     } catch (err) {
-      logger.error(`Unable to get ${coinsString} price`, { action: 'getCoinPrice', status: 'failed' });
+      const errorMessage = getFormattedErrorMessage(err, 'eth');
+      logger.error(`Unable to get ${coinsString} price. Reason: ${errorMessage}`, { action: 'getCoinPrice' });
       await sleep(SLEEP_BETWEEN_FAIL);
     }
   }
@@ -127,12 +140,10 @@ export const getCoinPriceCryptoCompare = async (props: GetPrices): Promise<Crypt
 
 export const getAllNativePrices = async (logger: LoggerType) => {
   // TODO: update later
-  const filteredNetworks = SUPPORTED_NETWORKS.filter(
-    (network) => network !== 'aptos' && network !== 'holesky' && network !== 'layerZero'
-  );
+  const filteredNetworks = SUPPORTED_NETWORKS.filter((network) => network !== 'aptos' && network !== 'holesky');
 
   const allUniqueNativeTokens = [
-    ...new Set([...filteredNetworks.map((network) => getNativeTokenByNetwork(network)), 'USDT', 'USDC', 'DAI']),
+    ...new Set([...filteredNetworks.map((network) => getNativeTokenByNetwork(network)), 'USDT', 'USDC', 'DAI', 'WETH']),
   ];
 
   return await getCoinPriceCryptoCompare({
