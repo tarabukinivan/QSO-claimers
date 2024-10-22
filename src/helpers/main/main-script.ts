@@ -102,6 +102,9 @@ export const runMainScript = async (props: MainScriptArgs) => {
       const results = await startWithThreads<WalletWithModules>({
         size: threads,
         array: walletsWithModules,
+        dbSource,
+        projectName,
+        walletsWithModules,
         callback: async (walletWithModules: WalletWithModules, _, currentWalletIndex) =>
           startModulesCallback({
             nativePrices,

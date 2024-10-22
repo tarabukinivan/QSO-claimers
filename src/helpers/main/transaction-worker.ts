@@ -137,6 +137,10 @@ export const transactionWorker = async (props: TransactionWorkerPropsWithCallbac
 
         if (response.txHash && response.explorerLink) {
           const txScanUrl = `${response.explorerLink}/tx/${response.txHash}`;
+          workerResponse = {
+            ...workerResponse,
+            txScanUrl,
+          };
           logger.success(`Check your transaction - ${txScanUrl}`, logTemplate);
 
           updateSavedModulesCount({

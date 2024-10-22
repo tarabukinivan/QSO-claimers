@@ -18,18 +18,18 @@ export const sendMsgToTG = async ({ message, logger, logTemplate, type = 'module
 
     if (!chatIds?.length) {
       chatIds = await getTgChatIds(tgToken);
-      logger?.success(`We retrieved next chat IDs: ${JSON.stringify(chatIds)}`, {
-        moduleName: 'Telegram',
-        action: 'sendMsgToTG',
-        status: 'succeeded',
-      });
+      // logger?.success(`We retrieved next chat IDs: ${JSON.stringify(chatIds)}`, {
+      //   moduleName: 'Telegram',
+      //   action: 'sendMsgToTG',
+      // });
     }
 
     const msg = msgToTemplateTransform(message, logTemplate);
+
     await sendTgMessage({ message: msg, chatIds, token: tgToken });
   } catch (error) {
     const e = error as Error;
-    logger?.error(`Error while sending alert to TG: ${e.message}`, logTemplate);
+    logger?.warning(`Error while sending alert to TG: ${e.message}`, logTemplate);
 
     return;
   }

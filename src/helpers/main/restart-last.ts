@@ -58,6 +58,9 @@ export const restartLast = async ({
     const threadsResults = await startWithThreads<WalletWithModules>({
       size: threads,
       array: walletsWithModulesToRestart,
+      dbSource,
+      projectName,
+      walletsWithModules: walletsWithModulesToRestart,
       callback: async (walletWithModules: WalletWithModules, _, currentWalletIndex) =>
         startModulesCallback({
           nativePrices,
