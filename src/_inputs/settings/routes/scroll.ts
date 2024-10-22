@@ -19,7 +19,7 @@ const modules: UserModuleConfig[] = [
     moduleName: 'scroll-claim',
     stopWalletOnError: true,
 
-    delay: [30, 60],
+    delay: [60, 120],
 
     indexGroup: 5,
   },
