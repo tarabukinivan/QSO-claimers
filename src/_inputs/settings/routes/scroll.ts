@@ -11,23 +11,23 @@ const countModules = [0, 0] as NumberRange;
 const groupSettings: GroupSettings = {};
 
 const modules: UserModuleConfig[] = [
-  // {
-  //   moduleName: 'scroll-check-claim',
-  //   indexGroup: 1,
-  // },
-  // {
-  //   moduleName: 'scroll-claim',
-  //   stopWalletOnError: true,
-  //
-  //   indexGroup: 5,
-  // },
-  // {
-  //   moduleName: 'scroll-transfer-claim',
-  //   minAndMaxAmount: [100, 100],
-  //   usePercentBalance: true,
-  //
-  //   indexGroup: 10,
-  // },
+  {
+    moduleName: 'scroll-check-claim',
+    indexGroup: 1,
+  },
+  {
+    moduleName: 'scroll-claim',
+    stopWalletOnError: true,
+
+    indexGroup: 5,
+  },
+  {
+    moduleName: 'scroll-transfer-claim',
+    minAndMaxAmount: [100, 100],
+    usePercentBalance: true,
+
+    indexGroup: 10,
+  },
 
   {
     moduleName: 'bitget-collect',
