@@ -59,7 +59,7 @@ npm run prepare-files
 11.  npm start
 
 ---
-
+```
 ✔️ QSO-claimers (https://github.com/QSO-soft/QSO-claimers) - проверить / заклеймить кошельки можете через наш открытый софт
 
 Функционал:
@@ -86,3 +86,4 @@ npm run prepare-files
 ## Scripts
 
 - [Claimers](src/scripts/claimers/README.md)
+```
