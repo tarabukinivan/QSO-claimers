@@ -90,7 +90,8 @@ export type Route =
   | 'alt-layer'
   | 'layer-zero'
   | 'check-balances'
-  | 'taiko';
+  | 'taiko'
+  | 'scroll';
 
 export type Settings = DefaultSettings;
 

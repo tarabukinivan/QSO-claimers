@@ -154,3 +154,33 @@ if [ ! -s src/_outputs/csv/checkers/taiko-claim.csv ]
     echo "\nCreating taiko-claim.csv in src/_outputs/csv/checkers/"
     touch src/_outputs/csv/checkers/taiko-claim.csv && echo "id,walletAddress" >> src/_outputs/csv/checkers/taiko-claim.csv
 fi
+
+#SCROLL ===============================================================================================================
+if [ ! -s src/_inputs/csv/scroll-wallets.csv ]
+  then :
+    echo "\nCreating scroll-wallets.csv in src/_inputs/csv/"
+    touch src/_inputs/csv/scroll-wallets.csv && echo "id,walletAddress,privKey,transferAddress,bitgetAddress,proxy,updateProxyLink" >> src/_inputs/csv/scroll-wallets.csv
+fi
+if [ ! -s src/_outputs/json/scroll-wallets.json ]
+  then :
+    echo "\nCreating scroll-wallets.json in src/_outputs/json/"
+    touch src/_outputs/json/scroll-wallets.json && echo "[]" >> src/_outputs/json/scroll-wallets.json
+fi
+
+if [ ! -s src/_outputs/csv/scroll-failed-wallets.csv ]
+  then :
+    echo "\nCreating scroll-failed-wallets.csv in src/_outputs/csv/"
+    touch src/_outputs/csv/scroll-failed-wallets.csv && echo "id,walletAddress,privKey,failReason" >> src/_outputs/csv/scroll-failed-wallets.csv
+fi
+
+if [ ! -s src/_outputs/json/scroll-saved-modules.json ]
+  then :
+    echo "\nCreating scroll-saved-modules.json in src/_outputs/json/"
+    touch src/_outputs/json/scroll-saved-modules.json && echo "[]" >> src/_outputs/json/scroll-saved-modules.json
+fi
+
+if [ ! -s src/_outputs/csv/checkers/scroll-claim.csv ]
+  then :
+    echo "\nCreating scroll-claim.csv in src/_outputs/csv/checkers/"
+    touch src/_outputs/csv/checkers/scroll-claim.csv && echo "id,walletAddress" >> src/_outputs/csv/checkers/scroll-claim.csv
+fi

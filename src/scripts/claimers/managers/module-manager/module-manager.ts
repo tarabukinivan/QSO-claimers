@@ -2,15 +2,18 @@ import { IModuleManager, ModuleManager as DefaultModuleManager } from '../../../
 import { ModuleNames } from '../../../../types';
 import {
   execMakeCheckClaimPolyhedra,
+  execMakeCheckClaimScroll,
   execMakeClaimLayerZero,
   execMakeClaimPolyhedra,
+  execMakeClaimScroll,
   execMakeClaimTaiko,
   execMakeTransferClaimLayerZero,
   execMakeTransferClaimPolyhedra,
+  execMakeTransferClaimScroll,
   execMakeTransferClaimTaiko,
+  execMakeCheckClaimTaiko,
+  execMakeCheckClaimLayerZero,
 } from '../../modules';
-import { execMakeCheckClaimLayerZero } from '../../modules/layer-zero/make-check-claim';
-import { execMakeCheckClaimTaiko } from '../../modules/taiko/make-check-claim';
 
 export class ModuleManager extends DefaultModuleManager {
   constructor(args: IModuleManager) {
@@ -39,6 +42,13 @@ export class ModuleManager extends DefaultModuleManager {
         return execMakeCheckClaimTaiko;
       case 'taiko-transfer-claim':
         return execMakeTransferClaimTaiko;
+
+      case 'scroll-claim':
+        return execMakeClaimScroll;
+      case 'scroll-check-claim':
+        return execMakeCheckClaimScroll;
+      case 'scroll-transfer-claim':
+        return execMakeTransferClaimScroll;
 
       default:
         return;

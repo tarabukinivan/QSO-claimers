@@ -14,25 +14,24 @@ import {
   getAxiosConfig,
   getGasOptions,
   getHeaders,
-  intToDecimal,
   TransactionCallbackParams,
   TransactionCallbackReturn,
   transactionWorker,
 } from '../../../../helpers';
 import { TransformedModuleParams } from '../../../../types';
-import { TaikoClaimEntity } from '../../db/entities';
+import { ScrollClaimEntity } from '../../db/entities';
 import { formatErrMessage, getCheckClaimMessage } from '../../utils';
-import { CLAIM_TAIKO_CONTRACT, HEADERS, TAIKO_ABI, TAIKO_TOKEN_CONTRACT } from './constants';
-import { getBalance, getFinalData, getProofData } from './helpers';
+import { CLAIM_SCROLL_CONTRACT, HEADERS, SCROLL_ABI, SCROLL_TOKEN_CONTRACT } from './constants';
+import { getBalance, getProofData } from './helpers';
 
-export const execMakeTransferClaimTaiko = async (params: TransformedModuleParams) =>
+export const execMakeTransferClaimScroll = async (params: TransformedModuleParams) =>
   transactionWorker({
     ...params,
-    startLogMessage: 'Execute make transfer claimed TAIKO...',
-    transactionCallback: makeTransferClaimTaiko,
+    startLogMessage: 'Execute make transfer claimed SCR...',
+    transactionCallback: makeTransferClaimScroll,
   });
 
-const makeTransferClaimTaiko = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
+const makeTransferClaimScroll = async (params: TransactionCallbackParams): TransactionCallbackReturn => {
   const {
     client,
     dbSource,
@@ -58,7 +57,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     };
   }
 
-  const dbRepo = dbSource.getRepository(TaikoClaimEntity);
+  const dbRepo = dbSource.getRepository(ScrollClaimEntity);
 
   let walletInDb = await dbRepo.findOne({
     where: {
@@ -82,8 +81,6 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     chainId: client.chainData.id,
   };
 
-  const finalRes = await getFinalData(dataProps);
-
   const created = dbRepo.create({
     walletId: wallet.id,
     index: wallet.index,
@@ -91,18 +88,17 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     network,
     nativeBalance,
     status: 'New',
-    score: finalRes.total,
+    // TODO: add marks
+    marks: '',
   });
   walletInDb = await dbRepo.save(created);
 
   try {
-    const contract = CLAIM_TAIKO_CONTRACT;
-
     const { int } = await client.getNativeBalance();
     nativeBalance = +int.toFixed(6);
 
     const proofRes = await getProofData(dataProps);
-    if (!proofRes.value || !proofRes.proof) {
+    if (!proofRes?.amount || !proofRes?.proof) {
       await dbRepo.update(walletInDb.id, {
         status: CLAIM_STATUSES.NOT_ELIGIBLE,
       });
@@ -113,33 +109,49 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
       };
     }
 
-    amountInt = +proofRes.value;
-    const amountWei = intToDecimal({
-      amount: amountInt,
-      decimals: 18,
+    const amountWei = BigInt(proofRes.amount);
+    amountInt = decimalToInt({
+      amount: amountWei,
     });
 
     const { currentBalance: currentBalanceInt, currentBalanceWei } = await getBalance(client);
     currentBalance = currentBalanceInt;
 
     const claimed = (await publicClient.readContract({
-      address: contract,
-      abi: TAIKO_ABI,
+      address: CLAIM_SCROLL_CONTRACT,
+      abi: SCROLL_ABI,
       functionName: 'hasClaimed',
-      args: [walletAddress, amountWei],
+      args: [walletAddress],
     })) as bigint;
 
     if (claimed === 0n) {
+      if (currentBalance === 0) {
+        await dbRepo.update(walletInDb.id, {
+          status: CLAIM_STATUSES.CLAIMED_AND_SENT,
+          claimAmount: amountInt,
+          nativeBalance,
+          balance: currentBalance,
+        });
+
+        return {
+          status: 'passed',
+          message: getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_AND_SENT),
+        };
+      }
+
       await dbRepo.update(walletInDb.id, {
-        status: CLAIM_STATUSES.NOT_CLAIMED,
+        status: CLAIM_STATUSES.CLAIMED_NOT_SENT,
         claimAmount: amountInt,
         nativeBalance,
         balance: currentBalance,
       });
 
+      const status = getCheckClaimMessage(CLAIM_STATUSES.CLAIMED_NOT_SENT);
+
       return {
-        status: 'passed',
-        message: getCheckClaimMessage(CLAIM_STATUSES.NOT_CLAIMED),
+        status: 'success',
+        message: status,
+        tgMessage: `${status} | Amount: ${amountInt}`,
       };
     }
 
@@ -183,10 +195,10 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
       amount: amountToTransfer,
       decimals: 18,
     });
-    logger.info(`Sending ${amountToTransferInt} TAIKO to ${transferAddress}...`);
+    logger.info(`Sending ${amountToTransferInt} SCR to ${transferAddress}...`);
 
     const txHash = await walletClient.writeContract({
-      address: TAIKO_TOKEN_CONTRACT,
+      address: SCROLL_TOKEN_CONTRACT,
       abi: defaultTokenAbi,
       functionName: 'transfer',
       args: [getAddress(transferAddress), amountToTransfer],
@@ -203,7 +215,7 @@ const makeTransferClaimTaiko = async (params: TransactionCallbackParams): Transa
     });
 
     return {
-      tgMessage: `Sent ${amountToTransferInt} TAIKO to ${transferAddress}`,
+      tgMessage: `Sent ${amountToTransferInt} SCR to ${transferAddress}`,
       status: 'success',
       txHash,
       explorerLink,

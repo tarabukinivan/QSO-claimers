@@ -121,7 +121,7 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
     stopWalletOnError: true,
     stopWalletOnPassed: false,
 
-    // Сеть для которой выполнять модуль eth | bsc
+    // Сеть для которой выполнять модуль
     network: 'taiko',
   },
   'taiko-claim': {
@@ -148,6 +148,42 @@ export const defaultModuleConfigs: DefaultModuleConfigs = {
 
     // Сеть для которой выполнять модуль
     network: 'taiko',
+  },
+  // ============== scroll ==============
+  'scroll-check-claim': {
+    count: [1, 1],
+    indexGroup: 0,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: false,
+
+    // Сеть для которой выполнять модуль
+    network: 'scroll',
+  },
+  'scroll-claim': {
+    count: [1, 1],
+    indexGroup: 1,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: false,
+
+    // Сеть для которой выполнять модуль
+    network: 'scroll',
+
+    tokenToSupply: 'ETH',
+  },
+  'scroll-transfer-claim': {
+    count: [1, 1],
+    indexGroup: 2,
+
+    stopWalletOnError: true,
+    stopWalletOnPassed: false,
+
+    minAndMaxAmount: [100, 100],
+    usePercentBalance: true,
+
+    // Сеть для которой выполнять модуль
+    network: 'scroll',
   },
   // ============== General ==============
   'balance-checker': {

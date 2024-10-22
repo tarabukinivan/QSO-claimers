@@ -1,4 +1,4 @@
-import { layerZero, polyhedra, taiko } from '../../../_inputs/settings/routes';
+import { layerZero, polyhedra, taiko, scroll } from '../../../_inputs/settings/routes';
 import { Route } from '../../../types';
 
 export const routeHandler = (route: Route) => {
@@ -9,6 +9,8 @@ export const routeHandler = (route: Route) => {
       return layerZero;
     case 'taiko':
       return taiko;
+    case 'scroll':
+      return scroll;
 
     default:
       throw new Error('Route name is wrong');

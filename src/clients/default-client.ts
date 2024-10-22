@@ -42,7 +42,7 @@ const TRANSPORT_RETRY_CONFIG = {
 };
 const WAIT_TX_CONFIG = {
   pollingInterval: 30000,
-  timeout: 120000,
+  timeout: 200000,
   // retryDelay: 1000,
   // retryCount: 10,
 };
@@ -77,7 +77,7 @@ export class DefaultClient {
       batch: true,
       fetchOptions: {
         // signal: AbortSignal.timeout(BASE_TIMEOUT),
-      },
+      } as any,
       key: `${this.chainData.name}-${index}`,
       // timeout: BASE_TIMEOUT,
       ...TRANSPORT_RETRY_CONFIG,
@@ -306,5 +306,3 @@ export class DefaultClient {
     return;
   }
 }
-
-export type DefaultClientClass = new (decryptedPrivKey: string, logger: LoggerType) => DefaultClient;

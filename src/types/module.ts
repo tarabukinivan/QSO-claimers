@@ -44,7 +44,10 @@ export type ModuleNames =
   | 'layer-zero-transfer-claim'
   | 'taiko-claim'
   | 'taiko-check-claim'
-  | 'taiko-transfer-claim';
+  | 'taiko-transfer-claim'
+  | 'scroll-claim'
+  | 'scroll-check-claim'
+  | 'scroll-transfer-claim';
 
 export type SwapModuleNames = Extract<
   ModuleNames,

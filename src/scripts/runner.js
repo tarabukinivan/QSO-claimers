@@ -6,22 +6,26 @@ import inquirer from 'inquirer';
 import { SECRET_PHRASE } from '../_inputs/settings/global.js';
 import savedLayerZeroModules from '../_outputs/json/layer-zero-saved-modules.json' assert { type: 'json' };
 import savedPolyhedraModules from '../_outputs/json/polyhedra-saved-modules.json' assert { type: 'json' };
+import savedScrollModules from '../_outputs/json/scroll-saved-modules.json' assert { type: 'json' };
 import savedTaikoModules from '../_outputs/json/taiko-saved-modules.json' assert { type: 'json' };
 
 const scripts = {
+  scroll: 'scroll',
   taiko: 'taiko',
   polyhedra: 'polyhedra',
   layerZero: 'layer-zero',
 };
 const aliases = {
-  runTaiko: '1. Taiko',
-  runPolyhedra: '2. Polyhedra',
-  runLayerZero: '3. LayerZero',
+  runScroll: '1. Scroll',
+  runTaiko: '2. Taiko',
+  runPolyhedra: '3. Polyhedra',
+  runLayerZero: '4. LayerZero',
 
   exit: '0. Выйти',
 };
 
 const commandAliases = {
+  [aliases.runScroll]: scripts.scroll,
   [aliases.runTaiko]: scripts.taiko,
   [aliases.runPolyhedra]: scripts.polyhedra,
   [aliases.runLayerZero]: scripts.layerZero,
@@ -35,6 +39,9 @@ const getStartMainCommand = async (projectName) => {
 
   let currentSavedModulesToUse;
   switch (projectName) {
+    case scripts.scroll:
+      currentSavedModulesToUse = savedScrollModules;
+      break;
     case scripts.taiko:
       currentSavedModulesToUse = savedTaikoModules;
       break;
@@ -118,6 +125,12 @@ const getSecretPhrase = async () => {
   let args = [];
 
   switch (selectedAlias) {
+    case aliases.runScroll: {
+      const { command, secret, projectName } = await getStartMainCommand(scripts.scroll);
+      selectedCommand = command;
+      args = [secret, projectName, projectName];
+      break;
+    }
     case aliases.runTaiko: {
       const { command, secret, projectName } = await getStartMainCommand(scripts.taiko);
       selectedCommand = command;

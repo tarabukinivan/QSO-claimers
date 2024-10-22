@@ -1,7 +1,7 @@
 import { SupportedNetworks } from '../../types';
 
 export const checkLegacyTypeByNetwork = (network: SupportedNetworks) => {
-  const legacyTypeNetworks: SupportedNetworks[] = ['scroll'];
+  const legacyTypeNetworks: SupportedNetworks[] = [];
 
   return legacyTypeNetworks.includes(network);
 };

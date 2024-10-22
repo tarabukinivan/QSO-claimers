@@ -11,30 +11,30 @@ const countModules = [0, 0] as NumberRange;
 const groupSettings: GroupSettings = {};
 
 const modules: UserModuleConfig[] = [
-  {
-    moduleName: 'bitget-collect',
-    collectTokens: ['ETH', 'TAIKO'],
-
-    indexGroup: 0,
-  },
-
   // {
-  //   moduleName: 'taiko-check-claim',
+  //   moduleName: 'scroll-check-claim',
   //   indexGroup: 1,
   // },
   // {
-  //   moduleName: 'taiko-claim',
+  //   moduleName: 'scroll-claim',
   //   stopWalletOnError: true,
   //
   //   indexGroup: 5,
   // },
   // {
-  //   moduleName: 'taiko-transfer-claim',
+  //   moduleName: 'scroll-transfer-claim',
   //   minAndMaxAmount: [100, 100],
   //   usePercentBalance: true,
   //
   //   indexGroup: 10,
   // },
+
+  {
+    moduleName: 'bitget-collect',
+    collectTokens: ['ETH', 'SCR'],
+
+    indexGroup: 100,
+  },
 ];
 
 // Выполнит скрипт на указанном количестве кошельков
